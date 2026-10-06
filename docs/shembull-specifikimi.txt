@@ -1,9 +1,9 @@
 SHEMBULL ME TË DHËNA PROVE (jo përgjigjet e klientit)
 
 XAUUSD EA SPECIFICATION (MetaTrader 5 / MQL5)
-Schema version: 4
-Submission ID: XAU-20261005-5PRV2S
-Photos: 1 (NOT included in this text file; download the full ZIP package for the photos)
+Schema version: 5
+Submission ID: XAU-20261005-LK296C
+Photos: 2 (NOT included in this text file; download the full ZIP package for the photos)
 Date: 2026-10-05
 Status: Answers submitted | Ready for programming: YES
 
@@ -11,22 +11,20 @@ Free-text answers are in Albanian. Do not invent rules: anything missing goes ba
 
 == 1. CLIENT ANSWERS ==
 
--- Confirmed facts --
+-- What is traded --
 - Client review of confirmed facts: Client confirms all facts
-
--- Timeframes and direction --
 - Signal (entry) timeframe: M15
 - Higher timeframe used for direction: H1
 - Higher-timeframe candle used: Closed candles only
 - Allowed directions: Both BUY and SELL
+
+-- When a trade is opened --
 - Direction filter method: Moving average
 - Direction MA type: EMA
 - Direction MA period: 200 period
 - Direction MA timeframe: H1
 - Direction MA price source: Close
 - Direction MA rule: BUY when candle closes above the MA, SELL when it closes below
-
--- Entry signal (BUY) --
 - Entry conditions: MA crossover, RSI
 - Crossover MA type: EMA
 - Crossover fast period: 9 period
@@ -41,20 +39,30 @@ Free-text answers are in Albanian. Do not invent rules: anything missing goes ba
 - Timing between conditions: All on the same candle
 - Signal evaluated on: Closed candle
 - SELL is an exact mirror of BUY (entries and exits): Yes, exact mirror including exits
-
--- Entry, cancellation and re-entry --
 - Order execution after signal confirmation: Market order immediately at the close of the signal candle
-- Max spread filter: Yes, developer sets a value for XAUUSD.r
-- When spread blocks entry: Signal is cancelled
 - Definition of a new signal: Conditions must reset and form again
 - Entries allowed per signal: Only one
 - Cooldown after a trade closes: No cooldown
 - Opposite signal while a trade is open: Ignore it, trade runs to SL/TP
 - Skip a valid signal when: Never, always take valid signals
+- Max spread filter: Yes, developer sets a value for XAUUSD.r
+- When spread blocks entry: Signal is cancelled
 
--- Risk and limits --
+-- When a trade is closed --
+- Stop loss placement: Fixed distance
+- SL fixed distance: 5 USD of gold price movement
+- Skip trade if SL is too large: No, always take the trade
+- Take profit method: Multiple of the initial risk (R)
+- Take profit multiple: 2R
+- Break-even: No (not used)
+- Partial close: No (not used)
+- Trailing stop: No (not used)
+
+-- Risk and position size --
 - Account currency: USD
 - Planned trading capital: 10000 USD
+- Account kind: Personal
+- Other trading on the same account: No, only this EA
 - Position sizing method (only one active): Risk %: volume computed from the chosen % and the SL distance
 - Risk per trade: 1 % of account
 - Risk % calculated from: Balance
@@ -64,20 +72,8 @@ Free-text answers are in Albanian. Do not invent rules: anything missing goes ba
 - Max positions open at the same time: 1 trades
 - After a winning trade: Keep trading up to the daily max
 - Stop after losses: No
-- Daily loss limit: No
+- Daily loss limit: No (not used)
 - Daily reset time: Midnight, Albania time (Europe/Tirane)
-- Account kind: Personal
-- Other trading on the same account: No, only this EA
-
--- Stop loss, take profit and trade management --
-- Stop loss placement: Fixed distance
-- SL fixed distance: 5 USD of gold price movement
-- Skip trade if SL is too large: No, always take the trade
-- Take profit method: Multiple of the initial risk (R)
-- Take profit multiple: 2R
-- Break-even: No
-- Partial close: No
-- Trailing stop: No
 
 -- Trading hours and news --
 - Trading days: Mon, Tue, Wed, Thu, Fri
@@ -87,10 +83,10 @@ Free-text answers are in Albanian. Do not invent rules: anything missing goes ba
 - DST handling: Hours follow local clock (DST-aware)
 - Open positions at end of trading hours: Keep until SL/TP
 - Close before the weekend: No
-- News filter: No
+- News filter: No (not used)
 - Phone push notifications: Yes
 
--- Trader backtest, examples and acceptance --
+-- Examples, backtest and acceptance --
 - TradingView gold chart: OANDA:XAUUSD
 - TradingView chart timezone: Albania (Europe/Tirane)
 - Candle type in backtest: Standard candlesticks
@@ -107,9 +103,12 @@ Free-text answers are in Albanian. Do not invent rules: anything missing goes ba
 - Required trade match: All, except differences explained by price feed or costs
 
 -- Examples --
-- Example 1 | Type: BUY | Result: Winner | Date: 2026-09-03 | Candle time: 10:15 | Timeframe: M15 | Entry price: 2650.4 | Stop loss price: 2645.4 | Take profit price: 2660.4 | Explanation: Kryqëzim dhe RSI mbi 50 | Photo: shembulli-1-buy-win.jpg
+- Example 1 | Type: BUY | Result: Winner | Date: 2026-09-03 | Candle time: 10:15 | Timeframe: M15 | Entry price: 2650.4 | Stop loss price: 2645.4 | Take profit price: 2660.4 | Explanation: Kryqëzim dhe RSI mbi 50 | Photo description: Hyrja pas kryqëzimit | Photo: shembulli-1-buy-win.jpg
 - Example 2 | Type: SELL | Result: Loser | Date: 2026-09-10 | Candle time: 14:30 | Timeframe: M15 | Entry price: 2660 | Stop loss price: 2665 | Take profit price: 2650 | Explanation: Kryqëzim poshtë, RSI nën 50 | Photo: none
 - Example 3 | Type: Case where the EA must NOT enter | Date: 2026-09-12 | Candle time: 09:45 | Timeframe: M15 | Explanation: RSI nuk e kaloi 50 | Photo: none
+
+-- Indicator settings photos --
+- cilesimet-1.jpg: RSI në M15
 
 == 2. PREVIOUSLY CONFIRMED FACTS ==
 - Broker: Tauro, on MetaTrader 5
@@ -123,7 +122,7 @@ Free-text answers are in Albanian. Do not invent rules: anything missing goes ba
 == 3. ASSUMPTIONS PENDING CONFIRMATION ==
 - 1R = initial distance from entry to the original SL, in USD of gold price.
 
-== 4. UNRESOLVED ISSUES AND CONTRADICTIONS ==
+== 4. TO CLARIFY WITH THE CLIENT (unresolved issues and contradictions) ==
 - None
 
 == 5. DEVELOPER VERIFICATIONS AND REQUIREMENTS ==
@@ -138,6 +137,7 @@ Free-text answers are in Albanian. Do not invent rules: anything missing goes ba
 - Push notifications: send via SendNotification() on open, modify and close.
 - Provide a demo-only build option (refuses to trade on real accounts) for client testing before payment.
 - Choose a max spread value for XAUUSD.r from measured spreads and document it as an input.
+- Photos (examples and indicator settings) are for checking the written rules only. Do NOT infer or invent parameters from photos; if a photo seems to disagree with an answer, ask the client.
 - Do not start coding while unresolved issues or contradictions exist. Send questions back to the client.
 
 == 6. ACCEPTANCE (rule implementation, not profit) ==

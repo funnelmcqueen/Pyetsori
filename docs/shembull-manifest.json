@@ -1,19 +1,25 @@
 {
   "format": "xauusd-pyetesori-manifest",
-  "id": "XAU-20261005-5PRV2S",
+  "id": "XAU-20261005-LK296C",
   "submissionKey": "00000000-0000-4000-8000-000000000000",
   "submittedAt": "2026-10-05T10:00:00.000Z",
   "firstAttemptAt": "2026-10-05T10:00:00.000Z",
   "mode": "test",
   "storage": "file",
-  "schemaVersion": 4,
-  "payloadHash": "8da5b28c27f6f02beb308e1a2400e22ca3700430f2286e645e7f9e662501126a",
+  "schemaVersion": 5,
+  "payloadHash": "d76003977fda5b27e8ff714096bf834f669793f2ff269c265508410b818a111a",
   "ready": true,
   "openItems": 0,
-  "photoCount": 1,
+  "photoCount": 2,
   "photos": [
     {
       "filename": "shembulli-1-buy-win.jpg",
+      "type": "image/jpeg",
+      "bytes": 22,
+      "sha256": "d20f6ffd523b78a86cd2f916fa34af5d1918d75f7b142237c752ad6b254213ab"
+    },
+    {
+      "filename": "cilesimet-1.jpg",
       "type": "image/jpeg",
       "bytes": 22,
       "sha256": "d20f6ffd523b78a86cd2f916fa34af5d1918d75f7b142237c752ad6b254213ab"
@@ -22,13 +28,13 @@
   "files": {
     "answers": {
       "name": "pergjigjet.json",
-      "bytes": 3675,
-      "sha256": "4943a9f1606350be57c693918a41afac54932c162d268c693d84e125019cd157"
+      "bytes": 4319,
+      "sha256": "7f53695d4d8af559897962180159d3872c441734b18b0f8173d3ee97441a4e5c"
     },
     "spec": {
       "name": "specifikimi.txt",
-      "bytes": 8479,
-      "sha256": "7c97c20fdd6144e92f9362f30a44b1191669482c00149ad04036fb18939ec6ee"
+      "bytes": 8772,
+      "sha256": "0f12f44a1bcc8532658dcac62a5fe43a8b634185a8798442a4af7f80010a4ea2"
     }
   }
 }

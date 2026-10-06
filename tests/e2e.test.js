@@ -56,7 +56,8 @@ test('HTTP: dorëzim, mbrojtje e panelit, tre eksportet dhe ruajtje pas rinisjes
     assert.ok(txt.equals(fs.readFileSync(path.join(sub, 'specifikimi.txt'))));
     var js = await (await fetch(s.base + '/api/admin?action=export&key=' + p.submissionId + '&format=json', { headers: auth })).json();
     assert.deepEqual(js.state, p.state);
-    assert.equal(js.schemaVersion, 4);
+    assert.equal(js.schemaVersion, require('../public/questionnaire.js').SCHEMA_VERSION);
+    assert.equal(js.analysis.readyForDevelopment, true);
   } finally { await stop(s); }
 
   // "Rinisja": server i ri, e njëjta ruajtje

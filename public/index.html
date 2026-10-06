@@ -5,190 +5,228 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="xau-endpoint" content="/api/submit">
 <meta name="author" content="Veli Reci, FunnelMcQueen">
-<meta name="theme-color" content="#1A1A1A">
+<meta name="theme-color" content="#17110D">
+<meta name="color-scheme" content="dark">
 <title>Pyetësori i strategjisë XAUUSD | FunnelMcQueen</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231A1A1A'/%3E%3Cpath d='M22 14h14l-8 36H14z' fill='%23E10600'/%3E%3Cpath d='M40 14h10l-8 36H32z' fill='%23F4B400'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%2317110D'/%3E%3Cpath d='M38 8 L16 37 H30 L24 56 L48 26 H34 Z' fill='%23E2542E' stroke='%23F2A93C' stroke-width='2.5' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=Barlow:ital,wght@1,800&display=swap" rel="stylesheet">
+<link href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600&display=swap" rel="stylesheet">
 <style>
+/* Sistemi vizual i funnelmcqueen.com */
 :root{
-  --paper:#F4F5F7; --surface:#FFFFFF; --ink:#1A1A1A; --muted:#5B6168; --line:#D9DDE2; --line-strong:#B9BFC6;
-  --red:#E10600; --red-ink:#B80500; --gold:#F4B400; --gold-soft:#FDF3D6;
-  --sel:#1A1A1A; --sel-ink:#FFFFFF;
-  --err:#B42318; --err-soft:#FDECEA; --ok:#1E7A46; --ok-soft:#E3F3E9; --focus:#1A1A1A;
-  --font:"Archivo",system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --bg:#17110D; --bg-2:#1C1510; --surface:#221912; --surface-2:#2A1F16; --field:#120D0A;
+  --ink:#F7F1E6; --muted:#CDBBA4; --dim:#9A8670;
+  --line:rgba(247,241,230,.11); --line-strong:rgba(247,241,230,.22);
+  --orange:#E2542E; --orange-hi:#EE6A41; --amber:#F2A93C; --amber-soft:rgba(242,169,60,.12);
+  --exit-bg:#3A2515; --exit-line:#B97A33;
+  --err:#FF8C7A; --err-soft:rgba(255,140,122,.09); --ok:#9BD28F; --ok-soft:rgba(155,210,143,.12); --focus:#F2A93C;
+  --display:"Clash Display","Space Grotesk",system-ui,sans-serif;
+  --body:"Space Grotesk",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  --label:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --cut:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%);
+  color-scheme:dark;
   box-sizing:border-box;
   padding-top:env(safe-area-inset-top,0px);
   padding-bottom:env(safe-area-inset-bottom,0px);
 }
-@media (prefers-color-scheme:dark){
-  :root:not([data-theme="light"]){
-    --paper:#141414; --surface:#1F1F1F; --ink:#F2F2F2; --muted:#A3A9B0; --line:#333333; --line-strong:#4A4A4A;
-    --red:#E10600; --red-ink:#FF6B63; --gold:#F4B400; --gold-soft:#2E2610;
-    --sel:#F2F2F2; --sel-ink:#141414;
-    --err:#FF8A80; --err-soft:#3A1E1B; --ok:#6FCF97; --ok-soft:#173326; --focus:#F2F2F2;
-  }
-}
-:root[data-theme="dark"]{
-  --paper:#141414; --surface:#1F1F1F; --ink:#F2F2F2; --muted:#A3A9B0; --line:#333333; --line-strong:#4A4A4A;
-  --red:#E10600; --red-ink:#FF6B63; --gold:#F4B400; --gold-soft:#2E2610;
-  --sel:#F2F2F2; --sel-ink:#141414;
-  --err:#FF8A80; --err-soft:#3A1E1B; --ok:#6FCF97; --ok-soft:#173326; --focus:#F2F2F2;
-}
 *,*::before,*::after{box-sizing:inherit}
-html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 16px);-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 76px);-webkit-text-size-adjust:100%;background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
 [hidden]{display:none !important}
-.wrap{max-width:660px;margin:0 auto;padding:0 20px}
+.wrap{max-width:680px;margin:0 auto;padding:0 20px}
+::selection{background:var(--orange);color:var(--ink)}
 
-/* Shiriti i markës */
-.brandbar{background:var(--surface);border-bottom:1px solid var(--line)}
-.brandbar .wrap{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px}
-.brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--ink)}
-.mark{display:flex;gap:3px;height:20px}
-.mark i{display:block;width:9px;height:20px;transform:skewX(-18deg);background:var(--red)}
-.mark i + i{background:var(--gold)}
-.wordmark{font-stretch:125%;font-weight:800;font-size:1.02rem;letter-spacing:-.01em;line-height:1}
-.symbol{font-stretch:112%;font-weight:700;font-size:.82rem;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:3px 8px}
+/* Header si në funnelmcqueen.com */
+.site-header{position:sticky;top:0;z-index:6;background:rgba(23,17,13,.86);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.site-header .wrap{display:flex;align-items:center;gap:14px;min-height:60px;max-width:1080px}
+.brand{display:flex;align-items:center;gap:10px;color:var(--ink);text-decoration:none}
+.brand .shield{height:30px;width:auto;flex:none}
+.brand .bolt{height:22px;width:auto;flex:none}
+.wordmark{font-family:"Barlow",var(--body);font-style:italic;font-weight:800;font-size:1.08rem;letter-spacing:-.01em;line-height:1}
+.brand-tag{display:flex;align-items:center;gap:14px;font-family:var(--label);font-weight:600;font-size:.74rem;letter-spacing:.24em;text-transform:uppercase;color:var(--dim)}
+.brand-tag::before{content:"";width:1px;height:16px;background:var(--line-strong)}
+@media (max-width:460px){.brand-tag{display:none}}
 
-/* Titulli */
-.intro-head{padding:30px 0 6px}
-.intro-head h1{margin:0;font-size:clamp(1.65rem,6.4vw,2.2rem);line-height:1.12;font-weight:800;font-stretch:112%;letter-spacing:-.015em;max-width:18ch}
-.intro-head p{margin:10px 0 0;color:var(--muted);max-width:52ch}
-#stepline{margin:18px 0 0;font-size:.9rem;color:var(--muted)}
-#banners{margin-top:4px}
-.banner{margin:14px 0 0;padding:12px 14px;border-radius:6px;font-size:.92rem;border:1px solid var(--line);background:var(--surface)}
-.banner.warn{border-color:var(--gold);background:var(--gold-soft)}
+/* Hyrja */
+.hero{position:relative;text-align:center;padding:46px 0 10px}
+.hero .big-shield{height:60px;width:auto;margin:0 auto 18px;display:block}
+.eyebrow{display:inline-flex;align-items:center;gap:10px;margin:0 0 20px;padding:7px 14px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);font-family:var(--label);font-weight:600;font-size:.78rem;letter-spacing:.2em;text-transform:uppercase;color:var(--ink)}
+.eyebrow i{width:7px;height:7px;transform:rotate(45deg);background:var(--orange);display:inline-block}
+.hero h1{margin:0 auto;font-family:var(--display);font-weight:600;font-size:clamp(2.3rem,9.5vw,3.6rem);line-height:1.02;letter-spacing:-.025em;max-width:14ch}
+.hero h1 .hl{color:var(--orange)}
+.hero .lead{margin:18px auto 0;color:var(--muted);max-width:50ch}
+.tagline{margin:18px 0 0;font-family:var(--label);font-weight:600;font-size:.82rem;letter-spacing:.34em;text-transform:uppercase;color:var(--amber)}
+/* Pas ekranit të parë, hyrja bëhet kompakte që pyetjet të shihen menjëherë në telefon */
+.hero.compact{padding:18px 0 0}
+.hero.compact .big-shield,.hero.compact .eyebrow,.hero.compact h1,.hero.compact .lead,.hero.compact .tagline{display:none}
+.hero.compact #stepline{margin-top:0}
+@media (max-width:460px){
+  .hero{padding-top:30px}
+  .hero .big-shield{display:none}
+  .eyebrow{letter-spacing:.12em;font-size:.72rem;gap:8px;padding:6px 10px}
+}
+#stepline{margin:26px 0 0;font-family:var(--label);font-weight:600;font-size:.86rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+#banners{margin-top:6px;text-align:left}
+.banner{margin:14px 0 0;padding:12px 14px;font-size:.92rem;border:1px solid var(--line-strong);background:var(--surface)}
+.banner.warn{border-color:var(--amber);background:var(--amber-soft)}
 .banner.err{border-color:var(--err);background:var(--err-soft)}
 
-/* Hapat */
-main{padding-bottom:28px}
-.step{padding:22px 0 0}
-.step > h2{display:grid;grid-template-columns:auto 1fr;align-items:baseline;column-gap:14px;margin:0 0 6px;padding-top:18px;border-top:2px solid var(--ink);font-size:1.38rem;line-height:1.22;font-weight:700}
-.step > h2 > span:first-child{font-stretch:125%;font-weight:800;font-size:2.1rem;line-height:1;color:var(--red)}
-.step > .intro{margin:0 0 26px;color:var(--muted);font-size:.96rem;max-width:56ch}
-.group-title{font-weight:700;font-size:.98rem;margin:8px 0 12px;padding-top:14px;border-top:1px solid var(--line)}
+/* Ekranet */
+main{padding-bottom:20px}
+.step{padding:24px 0 0}
+.screen-head{margin:0 0 26px;padding-top:22px;border-top:1px solid var(--line)}
+.section-label{display:inline-flex;align-items:stretch;margin:0 0 16px;border:1px solid var(--exit-line);background:var(--exit-bg);font-family:var(--label);text-transform:uppercase}
+.section-label .exit{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px 9px;border-right:1px solid var(--exit-line);line-height:1}
+.section-label .exit small{font-size:.58rem;font-weight:600;letter-spacing:.14em;color:var(--muted)}
+.section-label .exit b{font-size:1.05rem;font-weight:700;color:var(--ink);letter-spacing:.04em}
+.section-label .exit-name{display:flex;align-items:center;padding:6px 12px;font-weight:700;font-size:.82rem;letter-spacing:.18em;color:var(--ink)}
+.screen-head h2{margin:0 0 8px;font-family:var(--display);font-weight:600;font-size:clamp(1.55rem,6vw,2.05rem);line-height:1.12;letter-spacing:-.02em}
+.screen-head .intro{margin:0;color:var(--muted);font-size:.98rem;max-width:58ch}
 
 /* Pyetjet */
-.q{border:0;margin:0 0 26px;padding:0;min-width:0}
-.q > label.ql,.q > legend,.q > .ql{display:block;font-weight:600;font-size:1rem;margin:0 0 10px;padding:0}
-.hint{display:block;font-weight:400;color:var(--muted);font-size:.88rem;margin-top:3px}
-.opt-tag{font-weight:400;color:var(--muted);font-size:.86rem}
+.q{border:0;margin:0 0 28px;padding:0;min-width:0}
+.q > label.ql,.q > legend,.q > .ql{display:block;font-weight:600;font-size:1.02rem;line-height:1.4;margin:0 0 10px;padding:0}
+.hint{display:block;font-weight:400;color:var(--muted);font-size:.9rem;margin-top:4px;line-height:1.5}
+.hint.ex{color:var(--dim);font-style:normal}
+.hint.ex::before{content:"";display:inline-block;width:6px;height:6px;margin:0 8px 2px 0;transform:rotate(45deg);background:var(--amber)}
+.opt-tag{font-weight:400;color:var(--dim);font-size:.86rem}
 .qerr{display:flex;gap:8px;align-items:flex-start;color:var(--err);font-size:.9rem;font-weight:600;margin:10px 0 0}
-.qerr::before{content:"!";flex:none;display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;background:var(--err);color:var(--surface);font-size:.75rem;font-weight:800;margin-top:1px}
+.qerr::before{content:"!";flex:none;display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;background:var(--err);color:var(--bg);font-size:.75rem;font-weight:800;margin-top:1px}
 .q.has-err{padding-left:12px;border-left:3px solid var(--err)}
-.q.has-err input[type=text],.q.has-err input[type=email],.q.has-err input[type=time],.q.has-err input[type=date],.q.has-err textarea{border-color:var(--err)}
-
-input[type=text],input[type=email],input[type=time],input[type=date],textarea{width:100%;font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line-strong);border-radius:6px;padding:12px 13px;min-height:48px}
-input::placeholder,textarea::placeholder{color:var(--muted);opacity:.75}
-input:disabled,textarea:disabled{opacity:.45}
-textarea{min-height:116px;resize:vertical;line-height:1.5}
-input:focus-visible,textarea:focus-visible,button:focus-visible,.upl:focus-visible,.chips input:focus-visible + span,.unk input:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
-input:focus,textarea:focus{border-color:var(--ink)}
-.num{position:relative;display:flex;align-items:center}
-.num input{padding-right:118px}
-.num .unit{position:absolute;right:13px;color:var(--muted);font-size:.84rem;pointer-events:none;max-width:104px;text-align:right;line-height:1.15}
+input[type=text],input[type=email],input[type=time],input[type=date],input[type=password],textarea{width:100%;font:inherit;color:var(--ink);background:var(--field);border:1px solid var(--line-strong);border-radius:2px;padding:12px 13px;min-height:48px}
+input[type=time],input[type=date]{color-scheme:dark}
+input::placeholder,textarea::placeholder{color:var(--dim)}
+input:disabled,textarea:disabled{opacity:.4}
+textarea{min-height:120px;resize:vertical;line-height:1.55}
+input:focus,textarea:focus{border-color:var(--amber);outline:none}
+button:focus-visible,.upl:focus-visible,.chips input:focus-visible + span,.unk input:focus-visible{outline:2px solid var(--focus);outline-offset:3px}
+.q.has-err input[type=text],.q.has-err input[type=time],.q.has-err input[type=date],.q.has-err textarea{border-color:var(--err)}
+.num{display:flex;align-items:center;gap:10px}
+.num input{flex:1 1 auto;min-width:0}
+.num .unit{flex:0 1 auto;max-width:48%;color:var(--dim);font-family:var(--label);font-weight:600;font-size:.82rem;letter-spacing:.08em;text-transform:uppercase;line-height:1.2}
 
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chips label{position:relative;cursor:pointer;max-width:100%}
 .chips input{position:absolute;opacity:0;width:1px;height:1px}
-.chips span{display:inline-flex;align-items:center;min-height:44px;padding:10px 16px;border:1px solid var(--line-strong);border-radius:999px;background:var(--surface);font-size:.95rem;line-height:1.3;user-select:none;transition:background .12s,border-color .12s,color .12s}
-.chips label:hover span{border-color:var(--ink)}
-.chips input:checked + span{background:var(--sel);border-color:var(--sel);color:var(--sel-ink);font-weight:600}
-.chips label.unkchip span{border-style:dashed;color:var(--muted)}
-.chips label.unkchip input:checked + span{background:var(--gold-soft);border:1px solid var(--gold);color:var(--ink)}
+.chips span{display:inline-flex;align-items:center;max-width:100%;min-height:44px;padding:10px 16px;border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);font-size:.95rem;line-height:1.35;user-select:none;transition:background .12s,border-color .12s,color .12s}
+.chips label:hover span{border-color:var(--muted)}
+.chips input:checked + span{background:var(--orange);border-color:var(--orange);color:#FFF8EE;font-weight:600}
+.chips label.unkchip span{border-style:dashed;color:var(--muted);background:transparent}
+.chips label.unkchip input:checked + span{background:var(--amber-soft);border:1px solid var(--amber);color:var(--amber)}
 @media (prefers-reduced-motion:reduce){.chips span{transition:none}}
 .unk{display:inline-flex;gap:8px;align-items:center;margin-top:10px;font-size:.88rem;color:var(--muted);cursor:pointer}
-.unk input{width:18px;height:18px;accent-color:var(--ink);margin:0}
-
+.unk input{width:18px;height:18px;accent-color:var(--amber);margin:0}
 .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
-.row > .q{margin-bottom:20px}
+.row > .q{margin-bottom:22px}
+/* Në kolona të ngushta, njësia shkon poshtë fushës që fusha të mbetet e gjerë */
+.row .num{flex-wrap:wrap;gap:4px}
+.row .num .unit{flex-basis:100%;max-width:none}
 
-.facts{list-style:none;margin:0 0 4px;padding:0;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.facts{list-style:none;margin:0 0 4px;padding:0;border:1px solid var(--line);background:var(--surface)}
 .facts li{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-bottom:1px solid var(--line)}
 .facts li:last-child{border-bottom:0}
-.facts li::before{content:"✓";flex:none;display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--gold);color:#1A1A1A;font-size:.72rem;font-weight:800;margin-top:2px}
+.facts li::before{content:"";flex:none;width:8px;height:8px;margin-top:9px;transform:rotate(45deg);background:var(--orange)}
+.info{margin:0 0 26px;font-size:.94rem}
+.info strong{display:block;margin-bottom:3px;font-family:var(--label);font-weight:700;letter-spacing:.14em;text-transform:uppercase;font-size:.8rem;color:var(--amber)}
+.info.note{border-left:3px solid var(--amber);background:var(--amber-soft);padding:11px 14px}
+.info span{color:var(--ink)}
 
-.info{margin:0 0 24px;font-size:.94rem}
-.info strong{display:block;margin-bottom:3px}
-.info.note{border-left:3px solid var(--gold);background:var(--gold-soft);padding:10px 14px;border-radius:0 6px 6px 0}
-.info.section{padding-top:14px;border-top:1px solid var(--line)}
-.info.section strong{font-size:1rem}
-.info.section span{color:var(--muted)}
-
-.ex{border:1px solid var(--line);border-left:3px solid var(--ink);border-radius:8px;background:var(--surface);padding:16px;margin:0 0 14px}
-.ex-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;font-weight:700}
-.ex .q{margin-bottom:18px}
-.ex input[type=text],.ex input[type=time],.ex input[type=date],.ex textarea{background:var(--paper)}
-.ex .chips span{background:var(--paper)}
-.ex .chips input:checked + span{background:var(--sel)}
+div.ex{border:1px solid var(--line);border-left:3px solid var(--orange);background:var(--surface);padding:16px;margin:0 0 14px}
+.ex-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;font-family:var(--label);font-weight:700;font-size:.9rem;letter-spacing:.16em;text-transform:uppercase}
+div.ex .q{margin-bottom:18px}
+div.ex input[type=text],div.ex input[type=time],div.ex input[type=date],div.ex textarea{background:var(--field)}
+.coverage{margin:4px 0 14px;font-size:.92rem;color:var(--muted)}
+.settings-q{margin-top:10px;padding-top:18px;border-top:1px solid var(--line)}
 .photo{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-.photo img{width:128px;height:84px;object-fit:cover;border:1px solid var(--line);border-radius:6px}
-.upl{display:inline-flex;align-items:center;min-height:42px;cursor:pointer;padding:9px 16px;border:1px dashed var(--line-strong);border-radius:6px;color:var(--ink);font-weight:600;background:var(--surface)}
-.upl:hover{border-color:var(--ink)}
+.photo img{width:132px;height:86px;object-fit:cover;border:1px solid var(--line-strong)}
+.upl{display:inline-flex;align-items:center;min-height:44px;cursor:pointer;padding:9px 16px;border:1px dashed var(--line-strong);color:var(--ink);font-family:var(--label);font-weight:600;letter-spacing:.12em;text-transform:uppercase;font-size:.84rem;background:transparent}
+.upl:hover{border-color:var(--amber);color:var(--amber)}
 
+/* Butonat si në funnelmcqueen.com */
 button{font:inherit;cursor:pointer}
-button.main,button.ghost,button.small{font-weight:700;border-radius:6px;padding:12px 20px;min-height:48px;border:2px solid transparent}
-button.main{background:var(--red);border-color:var(--red);color:#FFFFFF}
-button.main:hover{background:#C70500;border-color:#C70500}
-button.ghost{background:transparent;color:var(--ink);border-color:var(--ink)}
-button.small{padding:6px 12px;font-size:.88rem;min-height:36px;background:transparent;color:var(--ink);border:1px solid var(--line-strong)}
-button:disabled{opacity:.55;cursor:default}
+button.main,button.ghost{display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:48px;padding:12px 22px;font-family:var(--body);font-weight:700;font-size:.86rem;letter-spacing:.03em;text-transform:uppercase;border:0}
+button.main{background:var(--orange);color:#FFF8EE;clip-path:var(--cut)}
+button.main::before{content:"";width:7px;height:7px;transform:rotate(45deg);border:1.5px solid currentColor}
+button.main:hover{background:var(--orange-hi)}
+button.ghost{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1px var(--line-strong)}
+button.ghost:hover{box-shadow:inset 0 0 0 1px var(--muted)}
+button.small{padding:6px 12px;min-height:34px;font-family:var(--label);font-weight:600;font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;background:transparent;color:var(--ink);border:1px solid var(--line-strong)}
+button.small:hover{border-color:var(--amber);color:var(--amber)}
+button:disabled{opacity:.5;cursor:default}
 
-.review h3{font-size:1.02rem;margin:24px 0 8px}
-.review ul{margin:0;padding-left:20px}
-.review li{margin:0 0 8px}
-.review li button{margin-left:8px}
-.status{border:1px solid var(--line);border-top:3px solid var(--ink);border-radius:8px;padding:16px;background:var(--surface);margin:0 0 18px}
+/* Kontrolli */
+.review h3{margin:28px 0 10px;font-family:var(--label);font-weight:700;font-size:.92rem;letter-spacing:.18em;text-transform:uppercase;color:var(--amber)}
+.status{border:1px solid var(--line);border-top:3px solid var(--orange);padding:16px;background:var(--surface);margin:0 0 14px}
 .status p{margin:0 0 8px}
 .status p:last-child{margin:0}
-.badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:.85rem;font-weight:700;margin-right:6px}
-.badge.yes{background:var(--ok-soft);color:var(--ok)}
-.badge.no{background:var(--gold-soft);color:var(--ink);border:1px solid var(--gold)}
-.actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:16px}
+.badge{display:inline-block;padding:3px 10px;margin-right:6px;font-family:var(--label);font-weight:700;font-size:.8rem;letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--line-strong)}
+.badge.yes{background:var(--ok-soft);color:var(--ok);border-color:transparent}
+.badge.no{background:var(--amber-soft);color:var(--amber);border-color:rgba(242,169,60,.4)}
+.sum{background:var(--surface);border:1px solid var(--line);padding:14px 16px;margin:0 0 12px}
+.sum-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}
+.sum-head strong{font-family:var(--display);font-weight:600;font-size:1.1rem;letter-spacing:-.01em}
+.sum dl{margin:0}
+.sum dt{color:var(--muted);font-size:.86rem;margin-top:10px}
+.sum dd{margin:2px 0 0;font-weight:600;white-space:pre-wrap;overflow-wrap:anywhere}
+.sum dd.unk-val{display:inline-block;background:var(--amber-soft);border:1px solid rgba(242,169,60,.5);color:var(--amber);padding:1px 8px}
+.sum ul,.review ul{margin:0;padding-left:20px}
+.issues li{margin:0 0 8px}
+.issues li::marker{color:var(--amber)}
+.issues li button{margin-left:6px}
+.actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:18px}
 #send-status{margin:14px 0 0;font-size:.95rem}
 #send-status.ok{color:var(--ok);font-weight:600}
 #send-status.err{color:var(--err);font-weight:600}
 .fallback{margin-top:20px;border-top:1px solid var(--line);padding-top:16px}
 .note{color:var(--muted);font-size:.9rem}
 
-/* Nënshkrimi */
-.signature{margin-top:36px;padding:22px 0 150px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:.86rem}
-.signature .brand .wordmark{font-size:.9rem}
-.signature .by{color:var(--ink);font-weight:600}
+/* Footer si në funnelmcqueen.com */
+.site-footer{margin-top:44px;padding:28px 0 160px;border-top:1px solid rgba(226,84,46,.55);display:grid;gap:14px;color:var(--muted);font-size:.9rem}
+.site-footer .brand .wordmark{font-size:1rem}
+.site-footer .slogan{margin:0;font-family:var(--label);font-weight:600;font-size:.8rem;letter-spacing:.3em;text-transform:uppercase;color:var(--ink)}
+.site-footer p{margin:0}
+.site-footer a{color:var(--amber);text-decoration:none}
+.site-footer a:hover{text-decoration:underline}
+.site-footer .legal{display:flex;flex-wrap:wrap;gap:6px 16px;padding-top:14px;border-top:1px solid var(--line);font-size:.8rem;color:var(--dim)}
 
-/* Shiriti poshtë: progresi me segmente */
-.bar{position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--surface);border-top:1px solid var(--line);padding:10px 20px calc(10px + env(safe-area-inset-bottom,0px))}
-.bar-in{max-width:660px;margin:0 auto}
-.track{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;margin-bottom:10px}
-.track i{display:block;height:5px;border-radius:2px;background:var(--line);transform:skewX(-18deg)}
-.track i.done{background:var(--ink)}
-.track i.current{background:var(--red)}
+/* Shiriti poshtë: rruga e progresit */
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:5;background:rgba(23,17,13,.94);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border-top:1px solid var(--line);padding:10px 20px calc(10px + env(safe-area-inset-bottom,0px))}
+.bar-in{max-width:680px;margin:0 auto}
+.track{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:10px}
+.track i{display:block;height:4px;background:var(--line-strong)}
+.track i.done{background:var(--amber)}
+.track i.current{background:var(--orange)}
 .nav{display:flex;gap:10px}
 .nav button{flex:1}
-.saved{font-size:.78rem;color:var(--muted);text-align:center;margin-top:6px;min-height:1em}
+.saved{font-size:.76rem;color:var(--dim);text-align:center;margin-top:6px;min-height:1em;font-family:var(--label);letter-spacing:.1em;text-transform:uppercase}
 </style>
 </head>
 <body>
-<div class="brandbar">
+<header class="site-header">
   <div class="wrap">
-    <span class="brand" aria-label="FunnelMcQueen"><span class="mark" aria-hidden="true"><i></i><i></i></span><span class="wordmark">FunnelMcQueen</span></span>
-    <span class="symbol">XAUUSD.r</span>
+    <span class="brand" aria-label="FunnelMcQueen"><svg class="shield" viewBox="0 0 128 132" role="img" aria-label="Route 66"><path d="M64 12 C 59 12 57 15 51 15 C 45 15 44 9 37 9 C 28 9 26 15 26 24 C 26 34 15 36 15 46 C 15 57 21 61 24 71 C 29 92 46 104 64 122 C 82 104 99 92 104 71 C 107 61 113 57 113 46 C 113 36 102 34 102 24 C 102 15 100 9 91 9 C 84 9 83 15 77 15 C 71 15 69 12 64 12 Z" fill="#F5EFE1" stroke="#171210" stroke-width="5" stroke-linejoin="round"/><g transform="translate(64 62) scale(0.86) translate(-64 -62)"><path d="M64 12 C 59 12 57 15 51 15 C 45 15 44 9 37 9 C 28 9 26 15 26 24 C 26 34 15 36 15 46 C 15 57 21 61 24 71 C 29 92 46 104 64 122 C 82 104 99 92 104 71 C 107 61 113 57 113 46 C 113 36 102 34 102 24 C 102 15 100 9 91 9 C 84 9 83 15 77 15 C 71 15 69 12 64 12 Z" fill="none" stroke="#171210" stroke-width="2.2"/></g><text x="64" y="42" text-anchor="middle" font-family="Barlow Condensed, Arial Narrow, sans-serif" font-size="14" font-weight="700" letter-spacing="5" fill="#171210">U · S</text><line x1="30" y1="49" x2="98" y2="49" stroke="#171210" stroke-width="1.8"/><text x="64" y="63" text-anchor="middle" font-family="Barlow Condensed, Arial Narrow, sans-serif" font-size="13" font-weight="700" letter-spacing="3.5" fill="#171210">ROUTE</text><text x="64" y="95" text-anchor="middle" font-family="Space Grotesk, Arial, sans-serif" font-size="33" font-weight="700" letter-spacing="-0.5" fill="#171210">66</text></svg><svg class="bolt" viewBox="0 0 20 30" aria-hidden="true"><path d="M12.5 1 L2.5 17 H9 L6.5 29 L17.5 11.5 H11 Z" fill="#E2542E" stroke="#F2A93C" stroke-width="1.4" stroke-linejoin="round"/></svg><span class="wordmark">FunnelMcQueen</span></span>
+    <span class="brand-tag">Pyetësori i strategjisë</span>
   </div>
-</div>
+</header>
 <div class="wrap">
-  <header class="intro-head">
-    <h1>Pyetësori i strategjisë</h1>
-    <p>Rregullat e tua të trading-ut për robotin XAUUSD në MetaTrader 5. Përgjigju ashtu si bën trade realisht. Sa më i saktë detaji, aq më i saktë roboti.</p>
+  <section class="hero">
+    <svg class="big-shield" viewBox="0 0 128 132" role="img" aria-label="Route 66"><path d="M64 12 C 59 12 57 15 51 15 C 45 15 44 9 37 9 C 28 9 26 15 26 24 C 26 34 15 36 15 46 C 15 57 21 61 24 71 C 29 92 46 104 64 122 C 82 104 99 92 104 71 C 107 61 113 57 113 46 C 113 36 102 34 102 24 C 102 15 100 9 91 9 C 84 9 83 15 77 15 C 71 15 69 12 64 12 Z" fill="#F5EFE1" stroke="#171210" stroke-width="5" stroke-linejoin="round"/><g transform="translate(64 62) scale(0.86) translate(-64 -62)"><path d="M64 12 C 59 12 57 15 51 15 C 45 15 44 9 37 9 C 28 9 26 15 26 24 C 26 34 15 36 15 46 C 15 57 21 61 24 71 C 29 92 46 104 64 122 C 82 104 99 92 104 71 C 107 61 113 57 113 46 C 113 36 102 34 102 24 C 102 15 100 9 91 9 C 84 9 83 15 77 15 C 71 15 69 12 64 12 Z" fill="none" stroke="#171210" stroke-width="2.2"/></g><text x="64" y="42" text-anchor="middle" font-family="Barlow Condensed, Arial Narrow, sans-serif" font-size="14" font-weight="700" letter-spacing="5" fill="#171210">U · S</text><line x1="30" y1="49" x2="98" y2="49" stroke="#171210" stroke-width="1.8"/><text x="64" y="63" text-anchor="middle" font-family="Barlow Condensed, Arial Narrow, sans-serif" font-size="13" font-weight="700" letter-spacing="3.5" fill="#171210">ROUTE</text><text x="64" y="95" text-anchor="middle" font-family="Space Grotesk, Arial, sans-serif" font-size="33" font-weight="700" letter-spacing="-0.5" fill="#171210">66</text></svg>
+    <p class="eyebrow"><i></i>XAUUSD.r · MetaTrader 5 · Tauro<i></i></p>
+    <h1>Pyetësori i <span class="hl">strategjisë</span></h1>
+    <p class="lead">Rregullat e tua të tregtimit për robotin XAUUSD. Nuk ka përgjigje të gabuara: kur nuk e di diçka, zgjidh "Nuk e di — ta sqarojmë bashkë".</p>
+    <p class="tagline">Ruhet vetë në këtë pajisje</p>
     <p id="stepline"></p>
     <div id="banners"></div>
-  </header>
+  </section>
   <noscript><p class="banner err">Ky pyetësor kërkon JavaScript.</p></noscript>
   <main id="app"></main>
-  <footer class="signature">
-    <span class="brand"><span class="mark" aria-hidden="true"><i></i><i></i></span><span class="wordmark">FunnelMcQueen</span></span>
-    <span>Produkt i FunnelMcQueen, <span class="by">by Veli Reci</span></span>
+  <footer class="site-footer">
+    <span class="brand" aria-label="FunnelMcQueen"><svg class="bolt" viewBox="0 0 20 30" aria-hidden="true"><path d="M12.5 1 L2.5 17 H9 L6.5 29 L17.5 11.5 H11 Z" fill="#E2542E" stroke="#F2A93C" stroke-width="1.4" stroke-linejoin="round"/></svg><span class="wordmark">FunnelMcQueen</span></span>
+    <p class="slogan">Built for speed. Wired to convert.</p>
+    <p>Pyetje gjatë plotësimit? Shkruaj te <a href="mailto:support@funnelmcqueen.com">support@funnelmcqueen.com</a>.</p>
+    <p class="legal"><span>© 2026 FunnelMcQueen, by Veli Reci</span><a href="https://funnelmcqueen.com" target="_blank" rel="noopener">funnelmcqueen.com</a><a href="https://funnelmcqueen.com/privacy" target="_blank" rel="noopener">Privacy Policy</a></p>
   </footer>
 </div>
 <div class="bar">

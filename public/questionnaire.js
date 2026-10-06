@@ -1,6 +1,8 @@
 /*
  * Pyetësori XAUUSD: skema dhe logjika e përbashkët.
- * Përdoret nga faqja (window.XAUQ) dhe nga serveri (require). Nuk ka varësi.
+ * Përdoret nga faqja (window.XAUQ), paneli dhe serveri (require). Nuk ka varësi.
+ * ID-të e pyetjeve dhe vlerat e opsioneve mbahen të qëndrueshme mes versioneve,
+ * që draftet dhe dorëzimet e vjetra të lexohen pa humbje.
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
@@ -8,356 +10,407 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  var SCHEMA_VERSION = 4;
+  var SCHEMA_VERSION = 5;
   var STORAGE_KEY = 'xau-q:state';
   var PREV_STORAGE_KEYS = ['xau-q:v2'];
   var BACKUP_KEY = 'xau-q:legacy-backup';
   var MAX_EXAMPLES = 6;
-  var MIN_EXAMPLES = 3;
-  var MAX_PHOTOS = 6;
+  var MIN_EXAMPLES = 1;
+  var MAX_SETTINGS_PHOTOS = 2;
+  var MAX_PHOTOS = MAX_EXAMPLES + MAX_SETTINGS_PHOTOS;
   var UNKNOWN = '?';
+  var UNKNOWN_SQ = 'Nuk e di — ta sqarojmë bashkë';
+  var UNKNOWN_EN = 'UNKNOWN — to clarify with the client';
   // Kufijtë e gjatësisë: tekstet e gjata refuzohen me mesazh, nuk shkurtohen kurrë në heshtje.
   var MAX_LEN = { text: 2000, textarea: 20000, email: 254, number: 40, time: 5, date: 10 };
-  var MAX_LEN_EX = { text: 100, textarea: 4000, number: 40, time: 5, date: 10 };
+  var MAX_LEN_EX = { text: 500, textarea: 4000, number: 40, time: 5, date: 10 };
 
-  // Fakte të konfirmuara më parë nga klienti (nuk shpiken të reja).
+  // Ajo që klienti na ka thënë më parë (nuk shpiken të reja).
   var CONFIRMED_FACTS = [
-    { id: 'broker', sq: 'Brokeri: Tauro, në MetaTrader 5', en: 'Broker: Tauro, on MetaTrader 5' },
-    { id: 'symbol', sq: 'Vetëm gold (ari), simboli XAUUSD.r', en: 'Instrument: gold only, symbol XAUUSD.r' },
-    { id: 'auto', sq: 'Roboti bën trade plotësisht vetë', en: 'Fully automatic: the EA opens, manages and closes trades itself' },
-    { id: 'strategy', sq: 'Një strategji, me backtest manual për 1 muaj në TradingView', en: 'One strategy, manually backtested for one month on TradingView' },
-    { id: 'risk', sq: 'Risk: 1% për trade', en: 'Risk: 1% per trade', value: 1 },
-    { id: 'maxtrades', sq: 'Max 3 trades në ditë', en: 'Maximum 3 trades per day', value: 3 }
+    { id: 'broker', sq: 'Brokeri yt është Tauro dhe tregton në MetaTrader 5', en: 'Broker: Tauro, on MetaTrader 5' },
+    { id: 'symbol', sq: 'Tregton vetëm arin, me simbolin XAUUSD.r', en: 'Instrument: gold only, symbol XAUUSD.r' },
+    { id: 'auto', sq: 'Roboti do t\'i hapë, menaxhojë dhe mbyllë trade-et vetë', en: 'Fully automatic: the EA opens, manages and closes trades itself' },
+    { id: 'strategy', sq: 'Ke një strategji, të testuar me dorë për 1 muaj në TradingView', en: 'One strategy, manually backtested for one month on TradingView' },
+    { id: 'risk', sq: 'Ke përmendur risk 1% për trade', en: 'Risk: 1% per trade', value: 1 },
+    { id: 'maxtrades', sq: 'Ke përmendur maksimumi 3 trade-e në ditë', en: 'Maximum 3 trades per day', value: 3 }
   ];
 
-  var STEPS = [
-    { id: 'client', sq: 'Faktet', en: 'Confirmed facts', intro: 'Kontrollo atë që kemi konfirmuar deri tani.' },
-    { id: 'timeframes', sq: 'Timeframe dhe drejtimi', en: 'Timeframes and direction', intro: 'Përgjigju ashtu si ke tregtuar në backtest-in në TradingView.' },
-    { id: 'signal', sq: 'Entry signal për {SIDE}', en: 'Entry signal ({SIDE})', intro: 'Zgjidh kushtet që duhen për të hapur {SIDE}. Për secilin shkruaj numrat e saktë.' },
-    { id: 'entry', sq: 'Entry dhe re-entry', en: 'Entry, cancellation and re-entry', intro: 'Kur dhe si dërgohet order-i, pasi konfirmohet signal-i.' },
-    { id: 'risk', sq: 'Risk dhe limitet', en: 'Risk and limits', intro: 'Limitet e risk-ut për çdo trade dhe për çdo ditë.' },
-    { id: 'exits', sq: 'SL, TP dhe menaxhimi', en: 'Stop loss, take profit and trade management', intro: '1R = distanca fillestare nga entry te Stop Loss. Shembull: SL 5$ larg entry-t, atëherë 1R = 5$ dhe 2R = 10$.' },
-    { id: 'time', sq: 'Trading hours dhe news', en: 'Trading hours and news', intro: 'Kur lejohet roboti të bëjë trade.' },
-    { id: 'backtest', sq: 'Backtest-i dhe shembujt', en: 'Trader backtest, examples and acceptance', intro: 'Me këto e krahasojmë robotin me mënyrën si tregton ti.' },
-    { id: 'done', sq: 'Kontrolli dhe dërgimi', en: 'Review and submit' }
+  // Pjesët e pyetësorit (siç i sheh klienti).
+  var SECTIONS = [
+    { id: 'trade', sq: 'Çfarë tregton?', en: 'What is traded' },
+    { id: 'entry', sq: 'Kur hap një trade?', en: 'When a trade is opened' },
+    { id: 'exit', sq: 'Kur e mbyll?', en: 'When a trade is closed' },
+    { id: 'risk', sq: 'Sa do të rrezikosh?', en: 'Risk and position size' },
+    { id: 'time', sq: 'Në cilat orare tregton?', en: 'Trading hours and news' },
+    { id: 'examples', sq: 'Na trego disa shembuj.', en: 'Examples, backtest and acceptance' },
+    { id: 'review', sq: 'Kontrollo përgjigjet.', en: 'Review' }
+  ];
+
+  // Ekranet: një grup i vogël pyetjesh të lidhura. Ekranet pa pyetje të dukshme kapërcehen.
+  var SCREENS = [
+    { id: 'facts', section: 'trade', sq: 'Ajo që na ke thënë deri tani', intro: 'Kontrollo nëse është e saktë. Përgjigjet ruhen vetë në këtë pajisje, kështu që mund të ndalosh dhe të vazhdosh më vonë.', special: 'facts' },
+    { id: 'chart', section: 'trade', sq: 'Grafiku dhe drejtimi', intro: 'Si e shikon grafikun kur tregton. Përgjigju ashtu si ke tregtuar në testin në TradingView.' },
+    { id: 'direction', section: 'entry', sq: 'Si e zgjedh drejtimin', intro: 'Para sinjalit: si vendos nëse kërkon BUY apo SELL.' },
+    { id: 'conditions', section: 'entry', sq: 'Sinjali për të hyrë', intro: 'Zgjidh gjithçka që kontrollon para se të hapësh një trade {SIDE}. Për secilën do të pyesim më pas për cilësimet.' },
+    { id: 'ind_ma_cross', section: 'entry', sq: 'Cilësimet: dy Moving Average që kryqëzohen', intro: 'Hape dritaren e cilësimeve të indikatorit në grafik dhe kopjo numrat këtu.' },
+    { id: 'ind_pullback', section: 'entry', sq: 'Cilësimet: kthimi te një Moving Average', intro: 'Hape dritaren e cilësimeve të indikatorit në grafik dhe kopjo numrat këtu.' },
+    { id: 'ind_rsi', section: 'entry', sq: 'Cilësimet: RSI', intro: 'Hape dritaren e cilësimeve të RSI në grafik dhe kopjo numrat këtu.' },
+    { id: 'ind_macd', section: 'entry', sq: 'Cilësimet: MACD', intro: 'Hape dritaren e cilësimeve të MACD në grafik dhe kopjo numrat këtu.' },
+    { id: 'ind_stoch', section: 'entry', sq: 'Cilësimet: Stochastic', intro: 'Hape dritaren e cilësimeve të Stochastic në grafik dhe kopjo numrat këtu.' },
+    { id: 'ind_bb', section: 'entry', sq: 'Cilësimet: Bollinger Bands', intro: 'Hape dritaren e cilësimeve të Bollinger Bands në grafik dhe kopjo numrat këtu.' },
+    { id: 'ind_breakout', section: 'entry', sq: 'Cilësimet: kalimi i një niveli (breakout)', intro: 'Breakout = çmimi kalon një nivel të rëndësishëm, p.sh. pikën më të lartë të ditës së kaluar.' },
+    { id: 'ind_retest', section: 'entry', sq: 'Cilësimet: kthimi te niveli (retest)', intro: 'Retest = pasi kalon nivelin, çmimi kthehet ta prekë sërish para se të vazhdojë.' },
+    { id: 'ind_candle', section: 'entry', sq: 'Cilësimet: forma e candle-s', intro: 'Candle = shufra në grafik që tregon lëvizjen e çmimit për një periudhë (p.sh. 15 minuta).' },
+    { id: 'ind_fib', section: 'entry', sq: 'Cilësimet: Fibonacci', intro: 'Si e vizaton dhe cilin nivel përdor.' },
+    { id: 'ind_custom', section: 'entry', sq: 'Indikatori i personalizuar', intro: 'Indikatorët e TradingView duhen rindërtuar për MT5, prandaj na duhet të dimë si funksionojnë.' },
+    { id: 'ind_other', section: 'entry', sq: 'Kushti tjetër', intro: 'Përshkruaje me fjalët e tua.' },
+    { id: 'combine', section: 'entry', sq: 'Si bashkohen kushtet', intro: 'Kur kontrollon disa gjëra, si i bashkon.' },
+    { id: 'sell', section: 'entry', sq: 'BUY dhe SELL, me fjalët e tua', intro: 'Pyetja e fundit për hyrjen është opsionale, por shumë e dobishme.' },
+    { id: 'order', section: 'entry', sq: 'Si hapet trade-i', intro: 'Çfarë ndodh në momentin kur kushtet plotësohen.' },
+    { id: 'repeat', section: 'entry', sq: 'Përsëritja dhe sinjali i kundërt', intro: 'Çfarë bën kur sinjali vazhdon ose kur del sinjal në drejtimin tjetër.' },
+    { id: 'skip', section: 'entry', sq: 'Kur NUK hyn', intro: 'Rastet kur sinjali është aty, por ti nuk e merr trade-in.' },
+    { id: 'sl', section: 'exit', sq: 'Stop Loss', intro: 'Stop Loss = çmimi ku trade-i mbyllet vetë me humbje, që humbja të mos rritet më.' },
+    { id: 'tp', section: 'exit', sq: 'Take Profit', intro: 'Take Profit = çmimi ku trade-i mbyllet vetë me fitim. 1R = sa larg është Stop Loss nga hyrja. Shembull: Stop Loss 5$ larg, atëherë 2R do të thotë Take Profit 10$ larg.' },
+    { id: 'be', section: 'exit', sq: 'Stop Loss te hyrja', intro: 'Disa traderë e zhvendosin Stop Loss te çmimi i hyrjes kur trade-i shkon në fitim (quhet break-even).' },
+    { id: 'partial', section: 'exit', sq: 'Mbyllja e një pjese', intro: 'Disa traderë mbyllin një pjesë të trade-it herët dhe e lënë pjesën tjetër të vazhdojë.' },
+    { id: 'trail', section: 'exit', sq: 'Stop Loss që ndjek çmimin', intro: 'Trailing stop = Stop Loss që lëviz vetë pas çmimit kur trade-i shkon në fitim.' },
+    { id: 'account', section: 'risk', sq: 'Llogaria', intro: 'Pak informacion për llogarinë ku do të punojë roboti.' },
+    { id: 'size', section: 'risk', sq: 'Madhësia e trade-it', intro: 'Lot = madhësia e trade-it. Sa më i madh loti, aq më shumë fiton ose humb për çdo lëvizje të çmimit.' },
+    { id: 'limits', section: 'risk', sq: 'Kufijtë e ditës', intro: 'Rregullat që e ndalojnë robotin të tregtojë shumë në një ditë.' },
+    { id: 'hours', section: 'time', sq: 'Oraret', intro: 'Kur lejohet roboti të hapë trade-e.' },
+    { id: 'news', section: 'time', sq: 'Lajmet dhe njoftimet', intro: 'Gjatë lajmeve të mëdha ekonomike ari lëviz shumë shpejt.' },
+    { id: 'backtest', section: 'examples', sq: 'Testi yt në TradingView', intro: 'Këto na ndihmojnë ta krahasojmë robotin me trade-et e tua.' },
+    { id: 'examples', section: 'examples', sq: 'Shembuj', intro: 'Fillo me një shembull. Pastaj, nëse mundesh, shto një trade që ka humbur dhe një rast kur NUK ke hyrë edhe pse dukej si sinjal. Nuk ka nevojë të jenë të përsosur: do t\'i sqarojmë bashkë.', special: 'examples' },
+    { id: 'acceptance', section: 'examples', sq: 'Si do ta kontrollojmë robotin', intro: 'Pasi ta ndërtojmë, e testojmë robotin në të njëjtën periudhë dhe e krahasojmë me trade-et e tua. Kjo kontrollon që rregullat janë zbatuar saktë. Nuk premton fitim.' },
+    { id: 'review', section: 'review', sq: 'Kontrollo përgjigjet', intro: 'Lexoji edhe një herë. Mund të korrigjosh çdo pjesë para se t\'i dorëzosh.', special: 'review' }
   ];
 
   var UNITS = {
-    usd: { sq: '$ lëvizje e arit', en: 'USD of gold price movement' },
+    usd: { sq: '$ lëvizje çmimi', en: 'USD of gold price movement' },
     pct: { sq: '% e llogarisë', en: '% of account' },
-    pctv: { sq: '% e volume', en: '% of volume' },
+    pctv: { sq: '% e trade-it', en: '% of position' },
     candles: { sq: 'candles', en: 'candles' },
     min: { sq: 'minuta', en: 'minutes' },
-    period: { sq: 'periudha', en: 'period' },
+    period: { sq: '', en: 'period' },
     r: { sq: 'R', en: 'R' },
     price: { sq: 'çmimi', en: 'price' },
-    count: { sq: 'trades', en: 'trades' },
+    count: { sq: 'trade-e', en: 'trades' },
+    mult: { sq: '×', en: 'x' },
     lot: { sq: 'lot', en: 'lots' },
-    ccy: { sq: 'monedha e llogarisë', en: 'account currency' },
-    mult: { sq: '×', en: 'x' }
+    ccy: { sq: 'monedha e llogarisë', en: 'account currency' }
   };
 
   function o(v, sq, en) { return { v: v, sq: sq, en: en || sq }; }
   var TF = ['M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D1'].map(function (t) { return o(t, t); });
-  var TF_SAME = [o('same', 'Si timeframe-i i signal-it', 'Same as signal timeframe')].concat(TF);
-  var SOURCE = [o('close', 'Mbyllja', 'Close'), o('open', 'Hapja', 'Open'), o('high', 'Maksimumi', 'High'), o('low', 'Minimumi', 'Low'), o('hl2', '(Max+Min)/2', 'HL2'), o('hlc3', '(Max+Min+Mbyllja)/3', 'HLC3')];
+  var TF_SAME = [o('same', 'I njëjti me grafikun ku hyn', 'Same as signal timeframe')].concat(TF);
+  var SOURCE = [o('close', 'Close (mbyllja)', 'Close'), o('open', 'Open (hapja)', 'Open'), o('high', 'High', 'High'), o('low', 'Low', 'Low'), o('hl2', 'Median (HL/2)', 'HL2'), o('hlc3', 'Typical (HLC/3)', 'HLC3')];
   var MA_TYPE = [o('ema', 'EMA'), o('sma', 'SMA'), o('other', 'Tjetër', 'Other')];
-  var YESNO = [o('yes', 'Po', 'Yes'), o('no', 'Jo', 'No')];
-  var KEEP_CANCEL = [o('cancel', 'E fshin pending order-in', 'Cancel the pending order'), o('keep', 'E lë', 'Keep it')];
+  var YES_NOTUSED = [o('no', 'Jo, nuk e përdor', 'No (not used)'), o('yes', 'Po', 'Yes')];
+  var KEEP_CANCEL = [o('cancel', 'E fshin urdhrin', 'Cancel the pending order'), o('keep', 'E lë', 'Keep it')];
+  var SOURCE_HINT = 'Te cilësimet quhet "Apply to". Nëse s\'e ke ndryshuar, zakonisht është Close.';
 
   function has(q, v) { return { q: q, has: v }; }
   function eq(q, v) { return { q: q, eq: v }; }
   function inn(q, vs) { return { q: q, in: vs }; }
   function all() { return { all: Array.prototype.slice.call(arguments) }; }
 
-  // type: single | multi | text | textarea | number | time | date | email | info | facts | examples
+  // type: single | multi | text | textarea | number | time | date | info | facts | examples | settings
+  // hint = shpjegim i shkurtër; ex = shembull (vetëm tekst, nuk plotëson asgjë); verify: 'dev' = zhvilluesi mund ta verifikojë vetë.
   var Q = [
-    // ---------- 1. Klienti ----------
-    { id: 'facts', step: 'client', type: 'facts', sq: 'Këto i kemi konfirmuar më parë', en: 'Previously confirmed facts' },
-    { id: 'facts_review', step: 'client', type: 'single', req: true, sq: 'A janë të sakta?', en: 'Client review of confirmed facts', options: [o('ok', 'Po, janë të sakta', 'Client confirms all facts'), o('fix', 'Diçka nuk është e saktë', 'Client flags a correction')] },
-    { id: 'facts_fix', step: 'client', type: 'textarea', req: true, sq: 'Çfarë duhet korrigjuar?', en: 'Correction to confirmed facts', show: eq('facts_review', 'fix') },
+    // ---------- Çfarë tregton? ----------
+    { id: 'facts', screen: 'facts', type: 'facts', sq: 'Më herët na ke thënë:', en: 'Previously confirmed facts' },
+    { id: 'facts_review', screen: 'facts', type: 'single', req: true, sq: 'A është e saktë?', en: 'Client review of confirmed facts', options: [o('ok', 'Po, është e saktë', 'Client confirms all facts'), o('fix', 'Diçka nuk është e saktë', 'Client flags a correction')] },
+    { id: 'facts_fix', screen: 'facts', type: 'textarea', req: true, sq: 'Çfarë duhet korrigjuar?', en: 'Correction to confirmed facts', show: eq('facts_review', 'fix') },
 
-    // ---------- 2. Timeframe dhe drejtimi ----------
-    { id: 'tf_signal', step: 'timeframes', type: 'single', req: true, unk: true, sq: 'Në cilin timeframe e merr entry signal-in?', en: 'Signal (entry) timeframe', options: TF },
-    { id: 'tf_higher', step: 'timeframes', type: 'single', req: true, unk: true, sq: 'A shikon një timeframe më të madh për drejtimin?', en: 'Higher timeframe used for direction', options: [o('none', 'Jo', 'None')].concat(TF.slice(2)) },
-    { id: 'htf_candle', step: 'timeframes', type: 'single', req: true, unk: true, sq: 'Te timeframe-i {HTF}, cilin candle shikon?', en: 'Higher-timeframe candle used', show: { q: 'tf_higher', nin: ['none', UNKNOWN] }, options: [o('closed', 'Vetëm candles të mbyllura', 'Closed candles only'), o('forming', 'Edhe candle-in që po formohet', 'Also the forming (unclosed) candle')] },
-    { id: 'sides', step: 'timeframes', type: 'single', req: true, unk: true, sq: 'Çfarë lejohet të hapë roboti?', en: 'Allowed directions', options: [o('both', 'BUY dhe SELL', 'Both BUY and SELL'), o('buy_only', 'Vetëm BUY', 'BUY only'), o('sell_only', 'Vetëm SELL', 'SELL only')] },
-    { id: 'dir_method', step: 'timeframes', type: 'single', req: true, unk: true, sq: 'Si e vendos nëse kërkon BUY apo SELL?', en: 'Direction filter method', options: [o('ma', 'Me Moving Average (MA)', 'Moving average'), o('structure', 'Me market structure', 'Market structure (swing highs/lows)'), o('indicator', 'Me indikator tjetër', 'Other indicator'), o('none', 'S\'kam filtër drejtimi', 'No direction filter')] },
-    { id: 'dir_ma_type', step: 'timeframes', type: 'single', req: true, sq: 'Lloji i MA-së', en: 'Direction MA type', show: eq('dir_method', 'ma'), options: MA_TYPE },
-    { id: 'dir_ma_type_other', step: 'timeframes', type: 'text', req: true, sq: 'Cila MA saktësisht?', en: 'Direction MA type (other)', ph: 'P.sh. WMA, HMA, VWAP', show: eq('dir_ma_type', 'other') },
-    { id: 'dir_ma_period', step: 'timeframes', type: 'number', req: true, num: 'int', unit: 'period', sq: 'Periudha', en: 'Direction MA period', ph: '200', show: eq('dir_method', 'ma'), row: 'dirma' },
-    { id: 'dir_ma_tf', step: 'timeframes', type: 'single', req: true, sq: 'Në cilin timeframe?', en: 'Direction MA timeframe', show: eq('dir_method', 'ma'), options: TF_SAME },
-    { id: 'dir_ma_source', step: 'timeframes', type: 'single', req: true, unk: true, sq: 'Nga cili çmim llogaritet?', en: 'Direction MA price source', show: eq('dir_method', 'ma'), options: SOURCE },
-    { id: 'dir_ma_rule', step: 'timeframes', type: 'single', req: true, sq: 'Si e lexon?', en: 'Direction MA rule', show: eq('dir_method', 'ma'), options: [o('close_vs_ma', 'BUY kur candle mbyllet mbi MA, SELL kur mbyllet nën të', 'BUY when candle closes above the MA, SELL when it closes below'), o('two_ma', 'BUY kur fast MA është mbi slow MA', 'BUY when a fast MA is above a slow MA (SELL the reverse)'), o('other', 'Ndryshe', 'Other')] },
-    { id: 'dir_ma_period2', step: 'timeframes', type: 'number', req: true, num: 'int', unit: 'period', sq: 'Periudha e fast MA', en: 'Direction fast MA period', ph: '50', show: eq('dir_ma_rule', 'two_ma') },
-    { id: 'dir_ma_rule_text', step: 'timeframes', type: 'text', req: true, sq: 'Si e lexon saktë?', en: 'Direction MA rule (own words)', show: eq('dir_ma_rule', 'other') },
-    { id: 'dir_st_tf', step: 'timeframes', type: 'single', req: true, sq: 'Në cilin timeframe e shikon market structure?', en: 'Structure timeframe', show: eq('dir_method', 'structure'), options: TF_SAME },
-    { id: 'dir_st_swing', step: 'timeframes', type: 'number', req: true, unk: true, num: 'int', unit: 'candles', sq: 'Një swing high është high më i lartë se sa candles majtas dhe djathtas?', en: 'Swing definition: candles on each side', ph: '3', show: eq('dir_method', 'structure') },
-    { id: 'dir_st_rule', step: 'timeframes', type: 'text', req: true, unk: true, sq: 'Kur është uptrend (BUY)?', en: 'Structure rule for bullish direction', ph: 'P.sh. higher high dhe higher low: swing high dhe swing low i fundit janë më lart se të mëparshmit', show: eq('dir_method', 'structure') },
-    { id: 'dir_ind_text', step: 'timeframes', type: 'text', req: true, sq: 'Cili indikator, me cilat settings, në cilin timeframe, dhe si e lexon?', en: 'Direction indicator rule', ph: 'P.sh. MACD 12/26/9 në H4: BUY kur histogrami është mbi zero', show: eq('dir_method', 'indicator') },
+    { id: 'tf_signal', screen: 'chart', type: 'single', req: true, unk: true, sq: 'Në cilin timeframe e shikon grafikun kur vendos të hapësh një trade?', hint: 'Timeframe = sa kohë përfaqëson çdo candle (shufër) në grafik. M15 = 15 minuta, H1 = 1 orë.', en: 'Signal (entry) timeframe', options: TF },
+    { id: 'tf_higher', screen: 'chart', type: 'single', req: true, unk: true, sq: 'A shikon edhe një timeframe më të madh për drejtimin e tregut?', hint: 'Disa traderë hyjnë në M15, por shikojnë H1 për të parë nëse tregu po ngrihet apo po bie.', en: 'Higher timeframe used for direction', options: [o('none', 'Jo, shikoj vetëm një timeframe', 'None')].concat(TF.slice(2)) },
+    { id: 'htf_candle', screen: 'chart', type: 'single', req: true, unk: true, sq: 'Te {HTF}, a pret që candle të mbyllet?', hint: 'Një candle e mbyllur nuk ndryshon më. Ajo që po formohet mund të ndryshojë deri sa të mbyllet.', en: 'Higher-timeframe candle used', show: { q: 'tf_higher', nin: ['none', UNKNOWN] }, options: [o('closed', 'Po, shikoj vetëm candles të mbyllura', 'Closed candles only'), o('forming', 'Jo, shikoj edhe candle-n që po formohet', 'Also the forming (unclosed) candle')] },
+    { id: 'sides', screen: 'chart', type: 'single', req: true, unk: true, sq: 'Çfarë trade-esh hap?', hint: 'BUY = blen, fiton kur çmimi i arit ngrihet. SELL = shet, fiton kur çmimi bie.', en: 'Allowed directions', options: [o('both', 'Edhe BUY edhe SELL', 'Both BUY and SELL'), o('buy_only', 'Vetëm BUY', 'BUY only'), o('sell_only', 'Vetëm SELL', 'SELL only')] },
 
-    // ---------- 3. Sinjali ----------
-    { id: 'cond', step: 'signal', type: 'multi', req: true, unk: true, sq: 'Çfarë duhet të ndodhë për të hapur {SIDE}?', en: 'Entry conditions', options: [
-      o('ma_cross', 'MA crossover', 'MA crossover'), o('pullback', 'Pullback te një MA', 'Pullback to a MA'), o('rsi', 'RSI'), o('macd', 'MACD'), o('stoch', 'Stochastic'), o('bb', 'Bollinger Bands'),
-      o('breakout', 'Breakout i një level-i', 'Level breakout'), o('retest', 'Retest pas breakout', 'Retest of a broken level'), o('candle', 'Candle pattern', 'Candle pattern'), o('fib', 'Fibonacci', 'Fibonacci retracement'),
-      o('custom', 'Indikator i personalizuar nga TradingView', 'Custom TradingView indicator'), o('other', 'Tjetër', 'Other')] },
-    // MA crossover
-    { id: 'cx_type', step: 'signal', type: 'single', req: true, group: 'MA crossover', sq: 'Lloji', en: 'Crossover MA type', show: has('cond', 'ma_cross'), options: MA_TYPE },
-    { id: 'cx_type_other', step: 'signal', type: 'text', req: true, sq: 'Cila MA saktësisht?', en: 'Crossover MA type (other)', ph: 'P.sh. WMA, HMA, VWAP', show: eq('cx_type', 'other') },
-    { id: 'cx_fast', step: 'signal', type: 'number', req: true, num: 'int', unit: 'period', sq: 'Fast MA', en: 'Crossover fast period', ph: '9', show: has('cond', 'ma_cross'), row: 'cx' },
-    { id: 'cx_slow', step: 'signal', type: 'number', req: true, num: 'int', unit: 'period', sq: 'Slow MA', en: 'Crossover slow period', ph: '21', show: has('cond', 'ma_cross'), row: 'cx' },
-    { id: 'cx_tf', step: 'signal', type: 'single', req: true, sq: 'Timeframe', en: 'Crossover timeframe', show: has('cond', 'ma_cross'), options: TF_SAME },
-    { id: 'cx_source', step: 'signal', type: 'single', req: true, unk: true, sq: 'Nga cili çmim?', en: 'Crossover price source', show: has('cond', 'ma_cross'), options: SOURCE },
-    { id: 'cx_note', step: 'signal', type: 'text', opt: true, sq: 'Shënim për crossover-in', en: 'Crossover note', ph: 'P.sh. vlen vetëm kur crossover ndodh mbi EMA 200', show: has('cond', 'ma_cross') },
-    // Pullback
-    { id: 'pb_type', step: 'signal', type: 'single', req: true, group: 'Pullback te MA', sq: 'Lloji i MA-së', en: 'Pullback MA type', show: has('cond', 'pullback'), options: MA_TYPE },
-    { id: 'pb_type_other', step: 'signal', type: 'text', req: true, sq: 'Cila MA saktësisht?', en: 'Pullback MA type (other)', ph: 'P.sh. WMA, HMA, VWAP', show: eq('pb_type', 'other') },
-    { id: 'pb_period', step: 'signal', type: 'number', req: true, num: 'int', unit: 'period', sq: 'Periudha', en: 'Pullback MA period', ph: '50', show: has('cond', 'pullback') },
-    { id: 'pb_tf', step: 'signal', type: 'single', req: true, sq: 'Timeframe', en: 'Pullback MA timeframe', show: has('cond', 'pullback'), options: TF_SAME },
-    { id: 'pb_touch', step: 'signal', type: 'single', req: true, sq: 'Sa afër duhet të vijë çmimi?', en: 'Pullback touch rule', show: has('cond', 'pullback'), options: [o('touch', 'Candle prek MA-në', 'Candle touches the MA'), o('near', 'Candle vjen brenda disa $ prej saj', 'Candle comes within a distance of the MA'), o('close_back', 'Prek MA-në dhe mbyllet në anën e trendit', 'Touches the MA and closes back on the trend side')] },
-    { id: 'pb_dist', step: 'signal', type: 'number', req: true, num: 'pos', unit: 'usd', sq: 'Brenda sa $?', en: 'Pullback max distance', ph: '1', show: eq('pb_touch', 'near') },
-    { id: 'pb_note', step: 'signal', type: 'text', opt: true, sq: 'Shënim për pullback-un', en: 'Pullback note', show: has('cond', 'pullback') },
-    // RSI
-    { id: 'rsi_period', step: 'signal', type: 'number', req: true, num: 'int', unit: 'period', group: 'RSI', sq: 'Periudha', en: 'RSI period', ph: '14', show: has('cond', 'rsi') },
-    { id: 'rsi_tf', step: 'signal', type: 'single', req: true, sq: 'Timeframe', en: 'RSI timeframe', show: has('cond', 'rsi'), options: TF_SAME },
-    { id: 'rsi_source', step: 'signal', type: 'single', req: true, unk: true, sq: 'Nga cili çmim?', en: 'RSI price source', show: has('cond', 'rsi'), options: SOURCE },
-    { id: 'rsi_rule', step: 'signal', type: 'text', req: true, sq: 'Kushti i saktë', en: 'RSI condition', ph: 'P.sh. RSI kalon nga poshtë mbi 30', show: has('cond', 'rsi') },
-    // MACD
-    { id: 'macd_fast', step: 'signal', type: 'number', req: true, num: 'int', unit: 'period', group: 'MACD', sq: 'Fast', en: 'MACD fast', ph: '12', show: has('cond', 'macd'), row: 'macd' },
-    { id: 'macd_slow', step: 'signal', type: 'number', req: true, num: 'int', unit: 'period', sq: 'Slow', en: 'MACD slow', ph: '26', show: has('cond', 'macd'), row: 'macd' },
-    { id: 'macd_signal', step: 'signal', type: 'number', req: true, num: 'int', unit: 'period', sq: 'Signal', en: 'MACD signal', ph: '9', show: has('cond', 'macd'), row: 'macd' },
-    { id: 'macd_tf', step: 'signal', type: 'single', req: true, sq: 'Timeframe', en: 'MACD timeframe', show: has('cond', 'macd'), options: TF_SAME },
-    { id: 'macd_rule', step: 'signal', type: 'text', req: true, sq: 'Kushti i saktë', en: 'MACD condition', ph: 'P.sh. MACD line kalon mbi signal line, nën zero', show: has('cond', 'macd') },
-    // Stochastic
-    { id: 'st_k', step: 'signal', type: 'number', req: true, num: 'int', unit: 'period', group: 'Stochastic', sq: '%K', en: 'Stochastic %K', ph: '14', show: has('cond', 'stoch'), row: 'st' },
-    { id: 'st_d', step: 'signal', type: 'number', req: true, num: 'int', unit: 'period', sq: '%D', en: 'Stochastic %D', ph: '3', show: has('cond', 'stoch'), row: 'st' },
-    { id: 'st_slow', step: 'signal', type: 'number', req: true, num: 'int', unit: 'period', sq: 'Slowing', en: 'Stochastic slowing', ph: '3', show: has('cond', 'stoch'), row: 'st' },
-    { id: 'st_tf', step: 'signal', type: 'single', req: true, sq: 'Timeframe', en: 'Stochastic timeframe', show: has('cond', 'stoch'), options: TF_SAME },
-    { id: 'st_rule', step: 'signal', type: 'text', req: true, sq: 'Kushti i saktë', en: 'Stochastic condition', ph: 'P.sh. %K kalon mbi %D nën level 20', show: has('cond', 'stoch') },
-    // Bollinger
-    { id: 'bb_period', step: 'signal', type: 'number', req: true, num: 'int', unit: 'period', group: 'Bollinger Bands', sq: 'Periudha', en: 'Bollinger period', ph: '20', show: has('cond', 'bb'), row: 'bb' },
-    { id: 'bb_dev', step: 'signal', type: 'number', req: true, num: 'pos', unit: 'mult', sq: 'Deviation', en: 'Bollinger deviation', ph: '2', show: has('cond', 'bb'), row: 'bb' },
-    { id: 'bb_tf', step: 'signal', type: 'single', req: true, sq: 'Timeframe', en: 'Bollinger timeframe', show: has('cond', 'bb'), options: TF_SAME },
-    { id: 'bb_source', step: 'signal', type: 'single', req: true, unk: true, sq: 'Nga cili çmim?', en: 'Bollinger price source', show: has('cond', 'bb'), options: SOURCE },
-    { id: 'bb_rule', step: 'signal', type: 'text', req: true, sq: 'Kushti i saktë', en: 'Bollinger condition', ph: 'P.sh. candle prek lower band dhe mbyllet brenda tij', show: has('cond', 'bb') },
-    // Breakout
-    { id: 'br_level', step: 'signal', type: 'single', req: true, group: 'Breakout', sq: 'Cili level?', en: 'Breakout level', show: has('cond', 'breakout'), options: [o('n_high', 'High/low i disa candles të fundit', 'Highest high / lowest low of the last N candles'), o('prev_day', 'High/low i ditës së kaluar', 'Previous day high/low'), o('swing', 'Swing high/low i fundit i konfirmuar', 'Last confirmed swing high/low'), o('other', 'Tjetër', 'Other')] },
-    { id: 'br_n', step: 'signal', type: 'number', req: true, num: 'int', unit: 'candles', sq: 'Sa candles?', en: 'Breakout lookback candles', ph: '20', show: eq('br_level', 'n_high') },
-    { id: 'br_swing', step: 'signal', type: 'number', req: true, unk: true, num: 'int', unit: 'candles', sq: 'Swing high konfirmohet kur është më lart se sa candles në secilën anë?', en: 'Breakout swing: candles on each side', ph: '3', show: eq('br_level', 'swing') },
-    { id: 'br_other', step: 'signal', type: 'text', req: true, sq: 'Si e gjen level-in saktë?', en: 'Breakout level (own words)', show: eq('br_level', 'other') },
-    { id: 'br_tf', step: 'signal', type: 'single', req: true, sq: 'Timeframe', en: 'Breakout timeframe', show: has('cond', 'breakout'), options: TF_SAME },
-    { id: 'br_confirm', step: 'signal', type: 'single', req: true, unk: true, sq: 'Kur quhet breakout?', en: 'Breakout confirmation', show: has('cond', 'breakout'), options: [o('close', 'Candle mbyllet përtej level-it', 'Candle closes beyond the level'), o('touch', 'Mjafton prekja', 'A touch is enough'), o('close_dist', 'Mbyllet të paktën disa $ përtej', 'Closes at least a distance beyond')] },
-    { id: 'br_dist', step: 'signal', type: 'number', req: true, num: 'pos', unit: 'usd', sq: 'Sa $ përtej?', en: 'Breakout minimum close distance', ph: '0.5', show: eq('br_confirm', 'close_dist') },
-    // Retest
-    { id: 'rt_within', step: 'signal', type: 'number', req: true, unk: true, num: 'int', unit: 'candles', group: 'Retest-i', sq: 'Brenda sa candles pas breakout?', en: 'Retest window after breakout', ph: '10', show: has('cond', 'retest') },
-    { id: 'rt_tol', step: 'signal', type: 'number', req: true, unk: true, num: 'nonneg', unit: 'usd', sq: 'Sa afër level-it duhet të kthehet?', en: 'Retest tolerance around level', ph: '0.5', show: has('cond', 'retest') },
-    { id: 'rt_confirm', step: 'signal', type: 'single', req: true, unk: true, sq: 'Si e konfirmon retest-in?', en: 'Retest confirmation', show: has('cond', 'retest'), options: [o('touch', 'Mjafton prekja e level-it', 'Touch of the level'), o('close_back', 'Prek level-in dhe mbyllet në anën e breakout', 'Touches the level and closes back on the breakout side'), o('other', 'Tjetër', 'Other')] },
-    { id: 'rt_other', step: 'signal', type: 'text', req: true, sq: 'Si saktësisht?', en: 'Retest confirmation (own words)', show: eq('rt_confirm', 'other') },
-    // Candle pattern
-    { id: 'cp_type', step: 'signal', type: 'multi', req: true, group: 'Candle pattern', sq: 'Cilat patterns?', en: 'Candle patterns', show: has('cond', 'candle'), options: [o('engulfing', 'Engulfing'), o('pinbar', 'Pin bar'), o('inside', 'Inside bar'), o('other', 'Tjetër', 'Other')] },
-    { id: 'cp_type_other', step: 'signal', type: 'text', req: true, sq: 'Cili candle pattern tjetër?', en: 'Candle pattern (other)', ph: 'P.sh. morning star, doji, hammer', show: has('cp_type', 'other') },
-    { id: 'cp_def', step: 'signal', type: 'textarea', req: true, sq: 'Si e përcakton saktë secilin?', en: 'Candle pattern exact definition', ph: 'P.sh. bullish engulfing: body i candle jeshil mbulon plotësisht body-n e candle të kuq para tij', show: has('cond', 'candle') },
-    { id: 'cp_tf', step: 'signal', type: 'single', req: true, sq: 'Timeframe', en: 'Candle pattern timeframe', show: has('cond', 'candle'), options: TF_SAME },
-    // Fibonacci
-    { id: 'fib_from', step: 'signal', type: 'text', req: true, group: 'Fibonacci', sq: 'Nga cili swing low te cili swing high e tërheq?', en: 'Fibonacci anchor points', ph: 'P.sh. nga swing low i fundit te swing high i fundit në H1', show: has('cond', 'fib') },
-    { id: 'fib_swing', step: 'signal', type: 'number', req: true, unk: true, num: 'int', unit: 'candles', sq: 'Swing high/low konfirmohet me sa candles në secilën anë?', en: 'Fibonacci swing: candles on each side', ph: '3', show: has('cond', 'fib') },
-    { id: 'fib_level', step: 'signal', type: 'multi', req: true, sq: 'Në cilin level bën entry?', en: 'Fibonacci entry level', show: has('cond', 'fib'), options: [o('0.382', '0.382'), o('0.5', '0.5'), o('0.618', '0.618'), o('0.786', '0.786'), o('other', 'Tjetër', 'Other')] },
-    { id: 'fib_level_other', step: 'signal', type: 'text', req: true, sq: 'Cili level saktësisht?', en: 'Fibonacci level (other)', ph: 'P.sh. 0.705', show: has('fib_level', 'other') },
-    { id: 'fib_entry', step: 'signal', type: 'single', req: true, unk: true, sq: 'Kur quhet i arritur level-i?', en: 'Fibonacci level trigger', show: has('cond', 'fib'), options: [o('touch', 'Kur çmimi e prek', 'Price touches the level'), o('close', 'Kur candle mbyllet atje dhe kthehet', 'Candle closes at the level and turns')] },
-    { id: 'fib_tf', step: 'signal', type: 'single', req: true, sq: 'Timeframe', en: 'Fibonacci timeframe', show: has('cond', 'fib'), options: TF_SAME },
-    // Custom indicator
-    { id: 'cu_name', step: 'signal', type: 'text', req: true, group: 'Indikatori i personalizuar', sq: 'Emri i indikatorit në TradingView', en: 'Custom indicator name', show: has('cond', 'custom') },
-    { id: 'cu_rule', step: 'signal', type: 'text', req: true, sq: 'Çfarë signal jep dhe si e përdor?', en: 'Custom indicator signal used', ph: 'P.sh. shigjeta jeshile poshtë candle = BUY', show: has('cond', 'custom') },
-    { id: 'cu_code', step: 'signal', type: 'single', req: true, sq: 'A e ke kodin ose formulat?', en: 'Custom indicator code availability', show: has('cond', 'custom'), options: [o('pine', 'Po, do ta dërgoj kodin Pine Script', 'Pine Script code will be sent separately'), o('formula', 'Po, i shkruaj formulat këtu', 'Formulas written below'), o('none', 'Nuk e kam kodin', 'No code available')] },
-    { id: 'cu_formula', step: 'signal', type: 'textarea', req: true, sq: 'Formulat e plota', en: 'Custom indicator formulas', show: eq('cu_code', 'formula') },
-    { id: 'cu_repaint', step: 'signal', type: 'single', req: true, unk: true, sq: 'Pasi del një signal, a ndryshon, zhduket ose zhvendoset më vonë (repaint)?', en: 'Custom indicator repaints', show: has('cond', 'custom'), options: [o('no', 'Jo, mbetet aty ku doli', 'No, signals never change after they appear'), o('yes', 'Po, ndonjëherë ndryshon', 'Yes, signals can change, vanish or move')] },
-    { id: 'cu_tf', step: 'signal', type: 'single', req: true, sq: 'Timeframe', en: 'Custom indicator timeframe', show: has('cond', 'custom'), options: TF_SAME },
-    // Other
-    { id: 'ot_text', step: 'signal', type: 'textarea', req: true, group: 'Kushti tjetër', sq: 'Përshkruaje saktë, me numra', en: 'Other condition', show: has('cond', 'other') },
-    // Combination
-    { id: 'combine', step: 'signal', type: 'single', req: true, unk: true, sq: 'Sa kushte duhen?', en: 'How conditions combine', show: { q: 'cond', countGt: 1 }, options: [o('all', 'Të gjitha', 'All conditions must be true'), o('any', 'Mjafton njëri', 'Any one condition is enough'), o('custom', 'Një kombinim', 'Custom combination')] },
-    { id: 'combine_text', step: 'signal', type: 'text', req: true, sq: 'Cili kombinim?', en: 'Custom combination', ph: 'P.sh. (MA crossover DHE RSI) OSE Breakout', show: eq('combine', 'custom') },
-    { id: 'seq', step: 'signal', type: 'single', req: true, unk: true, sq: 'Kur duhet të plotësohen?', en: 'Timing between conditions', show: all({ q: 'cond', countGt: 1 }, { q: 'combine', nin: ['any'] }), options: [o('same', 'Në të njëjtin candle', 'All on the same candle'), o('order', 'Me radhë, njëri pas tjetrit', 'In sequence')] },
-    { id: 'seq_order', step: 'signal', type: 'text', req: true, sq: 'Në çfarë rendi?', en: 'Sequence order', ph: 'P.sh. 1) MA crossover, 2) RSI kalon 50', show: eq('seq', 'order') },
-    { id: 'seq_window', step: 'signal', type: 'number', req: true, unk: true, num: 'int', unit: 'candles', sq: 'I gjithë rendi duhet të ndodhë brenda sa candles?', en: 'Sequence window', ph: '3', show: eq('seq', 'order') },
-    { id: 'seq_valid', step: 'signal', type: 'single', req: true, unk: true, sq: 'Kur ndodh kushti i fundit, a duhet që të mëparshmit të jenë ende të vlefshëm?', en: 'Earlier conditions must still be valid', show: eq('seq', 'order'), options: [o('yes', 'Po, duhet të vlejnë ende', 'Yes, they must still hold'), o('no', 'Jo, mjafton që kanë ndodhur', 'No, it is enough that they happened')] },
-    { id: 'sig_candle', step: 'signal', type: 'single', req: true, unk: true, sq: 'Kushtet e signal-it kontrollohen:', en: 'Signal evaluated on', options: [o('closed', 'Kur mbyllet candle', 'Closed candle'), o('forming', 'Brenda candle-it që po formohet', 'Forming (unclosed) candle')] },
-    { id: 'own_words', step: 'signal', type: 'textarea', opt: true, sq: 'Shpjegoje edhe me fjalët e tua, hap pas hapi', en: 'Entry rule in the trader\'s own words', ph: '1. …\n2. …\n3. …' },
-    { id: 'mirror', step: 'signal', type: 'single', req: true, sq: 'A është SELL pasqyrim i saktë i BUY?', hint: 'Pasqyrim do të thotë: çdo rregull i kundërt, edhe entry edhe exit.', en: 'SELL is an exact mirror of BUY (entries and exits)', show: eq('sides', 'both'), options: [o('mirror', 'Po, saktësisht i kundërt', 'Yes, exact mirror including exits'), o('differs', 'Jo, SELL ndryshon', 'No, SELL differs')] },
-    { id: 'sell_entry', step: 'signal', type: 'textarea', req: true, sq: 'Si bën entry në SELL?', en: 'SELL entry rules', show: eq('mirror', 'differs') },
-    { id: 'sell_exits', step: 'signal', type: 'single', req: true, sq: 'A ndryshojnë edhe exit-et (SL, TP, trade management) për SELL?', en: 'SELL exits differ', show: eq('mirror', 'differs'), options: [o('same', 'Jo, janë si te BUY', 'No, same as BUY'), o('differ', 'Po, ndryshojnë', 'Yes, they differ')] },
-    { id: 'sell_exits_text', step: 'signal', type: 'textarea', req: true, sq: 'Si ndryshojnë exit-et për SELL?', en: 'SELL exit rules', show: eq('sell_exits', 'differ') },
+    // ---------- Kur hap një trade? ----------
+    { id: 'dir_method', screen: 'direction', type: 'single', req: true, unk: true, sq: 'Si e vendos nëse kërkon BUY apo SELL?', en: 'Direction filter method', options: [o('ma', 'Me një Moving Average (MA), p.sh. çmimi mbi ose nën EMA 200', 'Moving average'), o('structure', 'Nga majat dhe gropat e grafikut', 'Market structure (swing highs/lows)'), o('indicator', 'Me një indikator tjetër', 'Other indicator'), o('none', 'Nuk përdor filtër drejtimi', 'No direction filter')] },
+    { id: 'dir_ma_type', screen: 'direction', type: 'single', req: true, sq: 'Cilin lloj MA përdor?', en: 'Direction MA type', show: eq('dir_method', 'ma'), options: MA_TYPE },
+    { id: 'dir_ma_type_other', screen: 'direction', type: 'text', req: true, sq: 'Cila MA saktësisht?', ex: 'WMA, HMA', en: 'Direction MA type (other)', show: eq('dir_ma_type', 'other') },
+    { id: 'dir_ma_period', screen: 'direction', type: 'number', req: true, num: 'int', unit: 'period', sq: 'Periudha e MA-së', hint: 'Numri që shkruan te cilësimet e indikatorit.', ex: '200', en: 'Direction MA period', show: eq('dir_method', 'ma') },
+    { id: 'dir_ma_tf', screen: 'direction', type: 'single', req: true, sq: 'Në cilin timeframe e shikon këtë MA?', en: 'Direction MA timeframe', show: eq('dir_method', 'ma'), options: TF_SAME },
+    { id: 'dir_ma_source', screen: 'direction', type: 'single', req: true, unk: true, sq: 'Nga cili çmim llogaritet MA?', hint: SOURCE_HINT, en: 'Direction MA price source', show: eq('dir_method', 'ma'), options: SOURCE },
+    { id: 'dir_ma_rule', screen: 'direction', type: 'single', req: true, sq: 'Si e lexon MA-në?', en: 'Direction MA rule', show: eq('dir_method', 'ma'), options: [o('close_vs_ma', 'BUY kur candle mbyllet mbi MA, SELL kur mbyllet nën të', 'BUY when candle closes above the MA, SELL when it closes below'), o('two_ma', 'Përdor dy MA: BUY kur MA e shpejtë është mbi të ngadaltën', 'BUY when a fast MA is above a slow MA (SELL the reverse)'), o('other', 'Ndryshe', 'Other')] },
+    { id: 'dir_ma_period2', screen: 'direction', type: 'number', req: true, num: 'int', unit: 'period', sq: 'Periudha e MA-së së shpejtë', ex: '50 (dhe 200 për të ngadaltën)', en: 'Direction fast MA period', show: eq('dir_ma_rule', 'two_ma') },
+    { id: 'dir_ma_rule_text', screen: 'direction', type: 'text', req: true, sq: 'Si e lexon saktë?', en: 'Direction MA rule (own words)', show: eq('dir_ma_rule', 'other') },
+    { id: 'dir_st_tf', screen: 'direction', type: 'single', req: true, sq: 'Në cilin timeframe i shikon majat dhe gropat?', en: 'Structure timeframe', show: eq('dir_method', 'structure'), options: TF_SAME },
+    { id: 'dir_st_swing', screen: 'direction', type: 'number', req: true, unk: true, num: 'int', unit: 'candles', sq: 'Sa candles në secilën anë duhet të jenë më poshtë, që një pikë të quhet majë?', hint: 'Majë (swing high) = pika më e lartë para se çmimi të kthehej poshtë. Gropë (swing low) = e kundërta.', ex: '3', en: 'Swing definition: candles on each side', show: eq('dir_method', 'structure') },
+    { id: 'dir_st_rule', screen: 'direction', type: 'text', req: true, unk: true, sq: 'Kur e quan tregun në rritje (për BUY)?', ex: 'maja e fundit dhe gropa e fundit janë më lart se të mëparshmet', en: 'Structure rule for bullish direction', show: eq('dir_method', 'structure') },
+    { id: 'dir_ind_text', screen: 'direction', type: 'text', req: true, sq: 'Cili indikator, me cilat cilësime, në cilin timeframe, dhe si e lexon?', ex: 'MACD 12/26/9 në H4: BUY kur histogrami është mbi zero', en: 'Direction indicator rule', show: eq('dir_method', 'indicator') },
 
-    // ---------- 4. Hyrja ----------
-    { id: 'exe', step: 'entry', type: 'single', req: true, unk: true, sq: 'Pasi konfirmohet signal-i, si dërgohet order-i?', en: 'Order execution after signal confirmation', options: [o('market_close', 'Market order, sapo mbyllet signal candle', 'Market order immediately at the close of the signal candle'), o('market_now', 'Market order, në momentin që plotësohen kushtet', 'Market order the moment conditions are met (intrabar)'), o('stop', 'Stop order përtej signal candle', 'Stop order beyond the signal candle'), o('limit', 'Limit order te një level', 'Limit order at a level')] },
-    { id: 'pd_level', step: 'entry', type: 'text', req: true, group: 'Pending order', sq: 'Nga cila pikë matet pending order?', en: 'Pending order reference', ph: 'P.sh. high i signal candle', show: inn('exe', ['stop', 'limit']) },
-    { id: 'pd_dist', step: 'entry', type: 'number', req: true, unk: true, num: 'nonneg', unit: 'usd', sq: 'Sa $ larg asaj pike?', en: 'Pending order distance from reference', ph: '0.5', show: inn('exe', ['stop', 'limit']) },
-    { id: 'pd_expiry', step: 'entry', type: 'number', req: true, unk: true, num: 'int', unit: 'candles', sq: 'Fshihet nëse s\'aktivizohet pas sa candles?', en: 'Pending order expiry', ph: '3', show: inn('exe', ['stop', 'limit']) },
-    { id: 'pd_dirchange', step: 'entry', type: 'single', req: true, unk: true, sq: 'Nëse ndryshon drejtimi (hapi 2):', en: 'Pending order when direction changes', show: inn('exe', ['stop', 'limit']), options: KEEP_CANCEL },
-    { id: 'pd_opposite', step: 'entry', type: 'single', req: true, unk: true, sq: 'Nëse del opposite signal:', en: 'Pending order on opposite signal', show: inn('exe', ['stop', 'limit']), options: KEEP_CANCEL },
-    { id: 'pd_session', step: 'entry', type: 'single', req: true, unk: true, sq: 'Kur mbarojnë trading hours:', en: 'Pending order at end of trading hours', show: inn('exe', ['stop', 'limit']), options: KEEP_CANCEL },
-    { id: 'pd_news', step: 'entry', type: 'single', req: true, unk: true, sq: 'Kur afrohet një news që e shmang:', en: 'Pending order before an avoided news event', show: all(inn('exe', ['stop', 'limit']), eq('news', 'yes')), options: KEEP_CANCEL },
-    { id: 'spread_filter', step: 'entry', type: 'single', req: true, unk: true, sq: 'Mos hyjë roboti kur spread-i është shumë i lartë?', en: 'Max spread filter', options: [o('dev', 'Po, vlerën e vendos programuesi', 'Yes, developer sets a value for XAUUSD.r'), o('value', 'Po, kam një vlerë', 'Yes, trader value'), o('no', 'Jo', 'No spread filter')] },
-    { id: 'spread_value', step: 'entry', type: 'number', req: true, num: 'pos', unit: 'usd', sq: 'Max spread', hint: 'Diferenca mes Ask dhe Bid, në $ të çmimit të arit.', en: 'Max spread', ph: '0.40', show: eq('spread_filter', 'value') },
-    { id: 'spread_block', step: 'entry', type: 'single', req: true, unk: true, sq: 'Kur spread-i e bllokon entry-n:', en: 'When spread blocks entry', show: inn('spread_filter', ['dev', 'value']), options: [o('cancel', 'Signal-i anulohet', 'Signal is cancelled'), o('wait', 'Pret derisa spread-i të bjerë', 'Wait for spread to drop')] },
-    { id: 'spread_wait', step: 'entry', type: 'number', req: true, unk: true, num: 'int', unit: 'min', sq: 'Pret maksimum sa minuta?', en: 'Max wait for spread', ph: '5', show: eq('spread_block', 'wait') },
-    { id: 'spread_wait_valid', step: 'entry', type: 'single', req: true, unk: true, sq: 'Pas pritjes, bën entry vetëm nëse kushtet janë ende të plotësuara?', en: 'After waiting, conditions must still hold', show: eq('spread_block', 'wait'), options: [o('yes', 'Po', 'Yes, conditions must still hold'), o('no', 'Jo, hyn gjithsesi', 'No, enter anyway')] },
-    { id: 'new_signal', step: 'entry', type: 'single', req: true, unk: true, sq: 'Çfarë quhet signal i ri?', en: 'Definition of a new signal', options: [o('reset', 'Kushtet duhet të prishen dhe të plotësohen sërish', 'Conditions must reset and form again'), o('new_candle', 'Çdo candle i ri që i plotëson kushtet', 'Every new candle that meets the conditions')] },
-    { id: 'entries_per_signal', step: 'entry', type: 'single', req: true, unk: true, sq: 'Sa entry lejohen për të njëjtin signal?', en: 'Entries allowed per signal', options: [o('1', 'Vetëm 1', 'Only one'), o('more', 'Më shumë se 1', 'More than one')] },
-    { id: 'entries_n', step: 'entry', type: 'number', req: true, num: 'int', unit: 'count', sq: 'Sa gjithsej?', en: 'Entries per signal', ph: '2', show: eq('entries_per_signal', 'more') },
-    { id: 'cooldown', step: 'entry', type: 'single', req: true, unk: true, sq: 'Pas mbylljes së një trade, pret para re-entry?', en: 'Cooldown after a trade closes', options: [o('none', 'Jo', 'No cooldown'), o('candles', 'Po, disa candles', 'Yes, a number of candles'), o('minutes', 'Po, disa minuta', 'Yes, a number of minutes')] },
-    { id: 'cooldown_n', step: 'entry', type: 'number', req: true, num: 'int', unit: 'candles', sq: 'Sa candles?', en: 'Cooldown candles', show: eq('cooldown', 'candles') },
-    { id: 'cooldown_min', step: 'entry', type: 'number', req: true, num: 'int', unit: 'min', sq: 'Sa minuta?', en: 'Cooldown minutes', show: eq('cooldown', 'minutes') },
-    { id: 'opposite', step: 'entry', type: 'single', req: true, unk: true, sq: 'Je në BUY dhe del signal SELL. Çfarë bën?', en: 'Opposite signal while a trade is open', show: eq('sides', 'both'), options: [o('ignore', 'E injoroj', 'Ignore it, trade runs to SL/TP'), o('close', 'E mbyll trade-in', 'Close the open trade only'), o('reverse', 'E mbyll dhe hap SELL', 'Close and open the opposite trade')] },
-    { id: 'skip', step: 'entry', type: 'multi', req: true, unk: true, sq: 'A ka raste kur ka signal, por nuk bën entry?', en: 'Skip a valid signal when', options: [o('never', 'Jo, bëj entry gjithmonë', 'Never, always take valid signals'), o('far_ma', 'Çmimi shumë larg MA-së', 'Price too far from a MA'), o('big', 'Signal candle shumë i madh', 'Signal candle too big'), o('range', 'Ranging market', 'Market ranging'), o('level', 'Afër një key level', 'Too close to a strong level'), o('other', 'Tjetër', 'Other')] },
-    { id: 'skip_far_ma_which', step: 'entry', type: 'text', req: true, sq: 'Cila MA?', en: 'Skip: which MA', ph: 'P.sh. EMA 50 në M15', show: has('skip', 'far_ma') },
-    { id: 'skip_far_ma_usd', step: 'entry', type: 'number', req: true, num: 'pos', unit: 'usd', sq: 'Nuk bën entry kur çmimi është më shumë se sa $ larg saj?', en: 'Skip: max distance from MA', ph: '8', show: has('skip', 'far_ma') },
-    { id: 'skip_big_usd', step: 'entry', type: 'number', req: true, num: 'pos', unit: 'usd', sq: 'Nuk bën entry kur candle (high minus low) kalon sa $?', en: 'Skip: max signal candle range', ph: '10', show: has('skip', 'big') },
-    { id: 'skip_range', step: 'entry', type: 'text', req: true, sq: 'Si e dallon ranging market?', en: 'Skip: ranging market definition', ph: 'P.sh. EMA 50 dhe EMA 200 janë brenda 2$ nga njëra-tjetra', show: has('skip', 'range') },
-    { id: 'skip_level', step: 'entry', type: 'text', req: true, sq: 'Cili level?', en: 'Skip: which strong level', ph: 'P.sh. high ose low i ditës së kaluar', show: has('skip', 'level') },
-    { id: 'skip_level_usd', step: 'entry', type: 'number', req: true, num: 'pos', unit: 'usd', sq: 'Nuk bën entry kur je brenda sa $ prej tij?', en: 'Skip: distance to strong level', ph: '3', show: has('skip', 'level') },
-    { id: 'skip_other', step: 'entry', type: 'text', req: true, sq: 'Cili rast tjetër, me numra?', en: 'Skip: other case', show: has('skip', 'other') },
+    { id: 'cond', screen: 'conditions', type: 'multi', req: true, unk: true, sq: 'Çfarë duhet të ndodhë që të hapësh një trade?', en: 'Entry conditions', options: [
+      o('ma_cross', 'Dy Moving Average kryqëzohen', 'MA crossover'), o('pullback', 'Çmimi kthehet te një Moving Average', 'Pullback to a MA'), o('rsi', 'RSI'), o('macd', 'MACD'), o('stoch', 'Stochastic'), o('bb', 'Bollinger Bands'),
+      o('breakout', 'Çmimi kalon një nivel (breakout)', 'Level breakout'), o('retest', 'Çmimi kthehet te niveli që sapo kaloi (retest)', 'Retest of a broken level'), o('candle', 'Një formë e caktuar candle-i, p.sh. engulfing', 'Candle pattern'), o('fib', 'Fibonacci', 'Fibonacci retracement'),
+      o('custom', 'Një indikator i personalizuar nga TradingView', 'Custom TradingView indicator'), o('other', 'Tjetër', 'Other')] },
 
-    // ---------- 5. Risku ----------
-    { id: 'cap_group', step: 'risk', type: 'info', variant: 'section', sq: 'Kapitali dhe monedha', text: 'Me çfarë kapitali planifikon ta përdorësh robotin dhe në cilën monedhë është llogaria?' },
-    { id: 'account_ccy', step: 'risk', type: 'single', req: true, unk: true, sq: 'Në cilën monedhë është llogaria?', en: 'Account currency', options: [o('USD', 'USD'), o('EUR', 'EUR'), o('other', 'Tjetër', 'Other')] },
-    { id: 'account_ccy_other', step: 'risk', type: 'text', req: true, sq: 'Cila monedhë?', en: 'Account currency (other)', ph: 'P.sh. GBP', max: 10, show: eq('account_ccy', 'other') },
-    { id: 'capital', step: 'risk', type: 'number', req: true, unk: true, num: 'pos', unit: 'ccy', sq: 'Me çfarë kapitali planifikon ta përdorësh robotin?', en: 'Planned trading capital', ph: '10000' },
-    { id: 'size_method', step: 'risk', type: 'single', req: true, unk: true, sq: 'Si dëshiron ta përcaktojë roboti sasinë (lot size) që hap në çdo trade?', hint: 'Roboti përdor vetëm një nga këto mënyra. Limitet e tjera të risk-ut vlejnë në çdo mënyrë.', en: 'Position sizing method (only one active)', options: [
+    // Cilësimet e çdo indikatori, bashkë në një ekran
+    { id: 'cx_type', screen: 'ind_ma_cross', type: 'single', req: true, sq: 'Lloji i MA-ve', en: 'Crossover MA type', show: has('cond', 'ma_cross'), options: MA_TYPE },
+    { id: 'cx_type_other', screen: 'ind_ma_cross', type: 'text', req: true, sq: 'Cila MA saktësisht?', ex: 'WMA, HMA', en: 'Crossover MA type (other)', show: eq('cx_type', 'other') },
+    { id: 'cx_fast', screen: 'ind_ma_cross', type: 'number', req: true, num: 'int', unit: 'period', sq: 'Periudha e MA-së së shpejtë', ex: '9', en: 'Crossover fast period', show: has('cond', 'ma_cross'), row: 'cx' },
+    { id: 'cx_slow', screen: 'ind_ma_cross', type: 'number', req: true, num: 'int', unit: 'period', sq: 'Periudha e MA-së së ngadaltë', ex: '21', en: 'Crossover slow period', show: has('cond', 'ma_cross'), row: 'cx' },
+    { id: 'cx_tf', screen: 'ind_ma_cross', type: 'single', req: true, sq: 'Në cilin timeframe?', en: 'Crossover timeframe', show: has('cond', 'ma_cross'), options: TF_SAME },
+    { id: 'cx_source', screen: 'ind_ma_cross', type: 'single', req: true, unk: true, sq: 'Nga cili çmim llogariten?', hint: SOURCE_HINT, en: 'Crossover price source', show: has('cond', 'ma_cross'), options: SOURCE },
+    { id: 'cx_note', screen: 'ind_ma_cross', type: 'text', opt: true, sq: 'Diçka tjetër për këtë kryqëzim?', ex: 'vlen vetëm kur ndodh mbi EMA 200', en: 'Crossover note', show: has('cond', 'ma_cross') },
+    { id: 'pb_type', screen: 'ind_pullback', type: 'single', req: true, sq: 'Lloji i MA-së', en: 'Pullback MA type', show: has('cond', 'pullback'), options: MA_TYPE },
+    { id: 'pb_type_other', screen: 'ind_pullback', type: 'text', req: true, sq: 'Cila MA saktësisht?', ex: 'WMA, HMA', en: 'Pullback MA type (other)', show: eq('pb_type', 'other') },
+    { id: 'pb_period', screen: 'ind_pullback', type: 'number', req: true, num: 'int', unit: 'period', sq: 'Periudha', ex: '50', en: 'Pullback MA period', show: has('cond', 'pullback') },
+    { id: 'pb_tf', screen: 'ind_pullback', type: 'single', req: true, sq: 'Në cilin timeframe?', en: 'Pullback MA timeframe', show: has('cond', 'pullback'), options: TF_SAME },
+    { id: 'pb_touch', screen: 'ind_pullback', type: 'single', req: true, sq: 'Sa afër MA-së duhet të vijë çmimi?', en: 'Pullback touch rule', show: has('cond', 'pullback'), options: [o('touch', 'Candle e prek MA-në', 'Candle touches the MA'), o('near', 'Candle vjen brenda disa $ prej saj', 'Candle comes within a distance of the MA'), o('close_back', 'E prek dhe mbyllet përsëri në anën e trendit', 'Touches the MA and closes back on the trend side')] },
+    { id: 'pb_dist', screen: 'ind_pullback', type: 'number', req: true, num: 'pos', unit: 'usd', sq: 'Brenda sa $?', hint: 'Lëvizje e çmimit të arit, jo para.', ex: '1', en: 'Pullback max distance', show: eq('pb_touch', 'near') },
+    { id: 'pb_note', screen: 'ind_pullback', type: 'text', opt: true, sq: 'Diçka tjetër për këtë kthim?', en: 'Pullback note', show: has('cond', 'pullback') },
+    { id: 'rsi_period', screen: 'ind_rsi', type: 'number', req: true, num: 'int', unit: 'period', sq: 'Periudha e RSI', hint: 'Zakonisht është 14.', en: 'RSI period', show: has('cond', 'rsi') },
+    { id: 'rsi_tf', screen: 'ind_rsi', type: 'single', req: true, sq: 'Në cilin timeframe?', en: 'RSI timeframe', show: has('cond', 'rsi'), options: TF_SAME },
+    { id: 'rsi_source', screen: 'ind_rsi', type: 'single', req: true, unk: true, sq: 'Nga cili çmim llogaritet?', hint: SOURCE_HINT, en: 'RSI price source', show: has('cond', 'rsi'), options: SOURCE },
+    { id: 'rsi_rule', screen: 'ind_rsi', type: 'text', req: true, sq: 'Çfarë duhet të bëjë RSI që të hysh?', ex: 'RSI kalon nga poshtë mbi 30', en: 'RSI condition', show: has('cond', 'rsi') },
+    { id: 'macd_fast', screen: 'ind_macd', type: 'number', req: true, num: 'int', unit: 'period', sq: 'Fast EMA', hint: 'Zakonisht 12, 26 dhe 9.', en: 'MACD fast', show: has('cond', 'macd'), row: 'macd' },
+    { id: 'macd_slow', screen: 'ind_macd', type: 'number', req: true, num: 'int', unit: 'period', sq: 'Slow EMA', en: 'MACD slow', show: has('cond', 'macd'), row: 'macd' },
+    { id: 'macd_signal', screen: 'ind_macd', type: 'number', req: true, num: 'int', unit: 'period', sq: 'MACD SMA (signal)', en: 'MACD signal', show: has('cond', 'macd'), row: 'macd' },
+    { id: 'macd_tf', screen: 'ind_macd', type: 'single', req: true, sq: 'Në cilin timeframe?', en: 'MACD timeframe', show: has('cond', 'macd'), options: TF_SAME },
+    { id: 'macd_rule', screen: 'ind_macd', type: 'text', req: true, sq: 'Çfarë duhet të bëjë MACD që të hysh?', ex: 'vija MACD kalon mbi vijën signal, nën zero', en: 'MACD condition', show: has('cond', 'macd') },
+    { id: 'st_k', screen: 'ind_stoch', type: 'number', req: true, num: 'int', unit: 'period', sq: '%K period', hint: 'Zakonisht 14, 3 dhe 3.', en: 'Stochastic %K', show: has('cond', 'stoch'), row: 'st' },
+    { id: 'st_d', screen: 'ind_stoch', type: 'number', req: true, num: 'int', unit: 'period', sq: '%D period', en: 'Stochastic %D', show: has('cond', 'stoch'), row: 'st' },
+    { id: 'st_slow', screen: 'ind_stoch', type: 'number', req: true, num: 'int', unit: 'period', sq: 'Slowing', en: 'Stochastic slowing', show: has('cond', 'stoch'), row: 'st' },
+    { id: 'st_tf', screen: 'ind_stoch', type: 'single', req: true, sq: 'Në cilin timeframe?', en: 'Stochastic timeframe', show: has('cond', 'stoch'), options: TF_SAME },
+    { id: 'st_rule', screen: 'ind_stoch', type: 'text', req: true, sq: 'Çfarë duhet të bëjë Stochastic që të hysh?', ex: '%K kalon mbi %D nën nivelin 20', en: 'Stochastic condition', show: has('cond', 'stoch') },
+    { id: 'bb_period', screen: 'ind_bb', type: 'number', req: true, num: 'int', unit: 'period', sq: 'Period', hint: 'Zakonisht 20 dhe 2.', en: 'Bollinger period', show: has('cond', 'bb'), row: 'bb' },
+    { id: 'bb_dev', screen: 'ind_bb', type: 'number', req: true, num: 'pos', unit: 'mult', sq: 'Deviations', en: 'Bollinger deviation', show: has('cond', 'bb'), row: 'bb' },
+    { id: 'bb_tf', screen: 'ind_bb', type: 'single', req: true, sq: 'Në cilin timeframe?', en: 'Bollinger timeframe', show: has('cond', 'bb'), options: TF_SAME },
+    { id: 'bb_source', screen: 'ind_bb', type: 'single', req: true, unk: true, sq: 'Nga cili çmim llogaritet?', hint: SOURCE_HINT, en: 'Bollinger price source', show: has('cond', 'bb'), options: SOURCE },
+    { id: 'bb_rule', screen: 'ind_bb', type: 'text', req: true, sq: 'Çfarë duhet të ndodhë me brezat që të hysh?', ex: 'candle prek brezin e poshtëm dhe mbyllet brenda tij', en: 'Bollinger condition', show: has('cond', 'bb') },
+    { id: 'br_level', screen: 'ind_breakout', type: 'single', req: true, sq: 'Cilin nivel kalon çmimi?', en: 'Breakout level', show: has('cond', 'breakout'), options: [o('n_high', 'Pikën më të lartë ose më të ulët të disa candles të fundit', 'Highest high / lowest low of the last N candles'), o('prev_day', 'Pikën më të lartë ose më të ulët të ditës së kaluar', 'Previous day high/low'), o('swing', 'Majën ose gropën e fundit', 'Last confirmed swing high/low'), o('other', 'Tjetër', 'Other')] },
+    { id: 'br_n', screen: 'ind_breakout', type: 'number', req: true, num: 'int', unit: 'candles', sq: 'Sa candles?', ex: '20', en: 'Breakout lookback candles', show: eq('br_level', 'n_high') },
+    { id: 'br_swing', screen: 'ind_breakout', type: 'number', req: true, unk: true, num: 'int', unit: 'candles', sq: 'Sa candles në secilën anë e konfirmojnë majën?', ex: '3', en: 'Breakout swing: candles on each side', show: eq('br_level', 'swing') },
+    { id: 'br_other', screen: 'ind_breakout', type: 'text', req: true, sq: 'Si e gjen nivelin saktë?', en: 'Breakout level (own words)', show: eq('br_level', 'other') },
+    { id: 'br_tf', screen: 'ind_breakout', type: 'single', req: true, sq: 'Në cilin timeframe?', en: 'Breakout timeframe', show: has('cond', 'breakout'), options: TF_SAME },
+    { id: 'br_confirm', screen: 'ind_breakout', type: 'single', req: true, unk: true, sq: 'Kur e quan nivelin të kaluar?', en: 'Breakout confirmation', show: has('cond', 'breakout'), options: [o('close', 'Kur candle mbyllet përtej tij', 'Candle closes beyond the level'), o('touch', 'Mjafton që çmimi ta prekë', 'A touch is enough'), o('close_dist', 'Kur candle mbyllet të paktën disa $ përtej', 'Closes at least a distance beyond')] },
+    { id: 'br_dist', screen: 'ind_breakout', type: 'number', req: true, num: 'pos', unit: 'usd', sq: 'Sa $ përtej?', ex: '0.5', en: 'Breakout minimum close distance', show: eq('br_confirm', 'close_dist') },
+    { id: 'rt_within', screen: 'ind_retest', type: 'number', req: true, unk: true, num: 'int', unit: 'candles', sq: 'Brenda sa candles pas kalimit duhet të kthehet çmimi?', ex: '10', en: 'Retest window after breakout', show: has('cond', 'retest') },
+    { id: 'rt_tol', screen: 'ind_retest', type: 'number', req: true, unk: true, num: 'nonneg', unit: 'usd', sq: 'Sa afër nivelit duhet të vijë?', ex: '0.5', en: 'Retest tolerance around level', show: has('cond', 'retest') },
+    { id: 'rt_confirm', screen: 'ind_retest', type: 'single', req: true, unk: true, sq: 'Si e kupton që kthimi mbaroi?', en: 'Retest confirmation', show: has('cond', 'retest'), options: [o('touch', 'Mjafton që ta prekë nivelin', 'Touch of the level'), o('close_back', 'E prek dhe mbyllet përsëri në anën e kalimit', 'Touches the level and closes back on the breakout side'), o('other', 'Tjetër', 'Other')] },
+    { id: 'rt_other', screen: 'ind_retest', type: 'text', req: true, sq: 'Si saktësisht?', en: 'Retest confirmation (own words)', show: eq('rt_confirm', 'other') },
+    { id: 'cp_type', screen: 'ind_candle', type: 'multi', req: true, sq: 'Cilat forma të candle-s?', en: 'Candle patterns', show: has('cond', 'candle'), options: [o('engulfing', 'Engulfing'), o('pinbar', 'Pin bar'), o('inside', 'Inside bar'), o('other', 'Tjetër', 'Other')] },
+    { id: 'cp_type_other', screen: 'ind_candle', type: 'text', req: true, sq: 'Cila formë tjetër?', ex: 'morning star, doji, hammer', en: 'Candle pattern (other)', show: has('cp_type', 'other') },
+    { id: 'cp_def', screen: 'ind_candle', type: 'textarea', req: true, sq: 'Si e njeh secilën?', ex: 'bullish engulfing: candle jeshile që e mbulon plotësisht trupin e candle-s së kuqe para saj', en: 'Candle pattern exact definition', show: has('cond', 'candle') },
+    { id: 'cp_tf', screen: 'ind_candle', type: 'single', req: true, sq: 'Në cilin timeframe?', en: 'Candle pattern timeframe', show: has('cond', 'candle'), options: TF_SAME },
+    { id: 'fib_from', screen: 'ind_fib', type: 'text', req: true, sq: 'Nga cila pikë te cila e vizaton Fibonacci?', ex: 'nga gropa e fundit te maja e fundit në H1', en: 'Fibonacci anchor points', show: has('cond', 'fib') },
+    { id: 'fib_swing', screen: 'ind_fib', type: 'number', req: true, unk: true, num: 'int', unit: 'candles', sq: 'Sa candles në secilën anë e konfirmojnë majën ose gropën?', ex: '3', en: 'Fibonacci swing: candles on each side', show: has('cond', 'fib') },
+    { id: 'fib_level', screen: 'ind_fib', type: 'multi', req: true, sq: 'Në cilin nivel hyn?', en: 'Fibonacci entry level', show: has('cond', 'fib'), options: [o('0.382', '0.382'), o('0.5', '0.5'), o('0.618', '0.618'), o('0.786', '0.786'), o('other', 'Tjetër', 'Other')] },
+    { id: 'fib_level_other', screen: 'ind_fib', type: 'text', req: true, sq: 'Cili nivel saktësisht?', ex: '0.705', en: 'Fibonacci level (other)', show: has('fib_level', 'other') },
+    { id: 'fib_entry', screen: 'ind_fib', type: 'single', req: true, unk: true, sq: 'Kur e quan nivelin të arritur?', en: 'Fibonacci level trigger', show: has('cond', 'fib'), options: [o('touch', 'Kur çmimi e prek', 'Price touches the level'), o('close', 'Kur candle mbyllet atje dhe kthehet', 'Candle closes at the level and turns')] },
+    { id: 'fib_tf', screen: 'ind_fib', type: 'single', req: true, sq: 'Në cilin timeframe?', en: 'Fibonacci timeframe', show: has('cond', 'fib'), options: TF_SAME },
+    { id: 'cu_name', screen: 'ind_custom', type: 'text', req: true, sq: 'Si quhet indikatori në TradingView?', en: 'Custom indicator name', show: has('cond', 'custom') },
+    { id: 'cu_rule', screen: 'ind_custom', type: 'text', req: true, sq: 'Çfarë sinjali jep dhe si e përdor?', ex: 'shigjeta jeshile poshtë candle-s = BUY', en: 'Custom indicator signal used', show: has('cond', 'custom') },
+    { id: 'cu_code', screen: 'ind_custom', type: 'single', req: true, sq: 'A e ke kodin ose formulat e tij?', en: 'Custom indicator code availability', show: has('cond', 'custom'), options: [o('pine', 'Po, do ta dërgoj kodin (Pine Script)', 'Pine Script code will be sent separately'), o('formula', 'Po, i shkruaj formulat këtu', 'Formulas written below'), o('none', 'Jo, nuk e kam kodin', 'No code available')] },
+    { id: 'cu_formula', screen: 'ind_custom', type: 'textarea', req: true, sq: 'Shkruaji formulat', en: 'Custom indicator formulas', show: eq('cu_code', 'formula') },
+    { id: 'cu_repaint', screen: 'ind_custom', type: 'single', req: true, unk: true, sq: 'Pasi shfaqet një sinjal, a ndodh që më vonë të ndryshojë, të zhduket ose të lëvizë?', en: 'Custom indicator repaints', show: has('cond', 'custom'), options: [o('no', 'Jo, mbetet aty ku doli', 'No, signals never change after they appear'), o('yes', 'Po, ndonjëherë ndryshon', 'Yes, signals can change, vanish or move')] },
+    { id: 'cu_tf', screen: 'ind_custom', type: 'single', req: true, sq: 'Në cilin timeframe?', en: 'Custom indicator timeframe', show: has('cond', 'custom'), options: TF_SAME },
+    { id: 'ot_text', screen: 'ind_other', type: 'textarea', req: true, sq: 'Përshkruaje kushtin, me numra', en: 'Other condition', show: has('cond', 'other') },
+
+    { id: 'combine', screen: 'combine', type: 'single', req: true, unk: true, sq: 'Duhet të plotësohen të gjitha kushtet, apo mjafton njëri?', en: 'How conditions combine', show: { q: 'cond', countGt: 1 }, options: [o('all', 'Të gjitha', 'All conditions must be true'), o('any', 'Mjafton njëri', 'Any one condition is enough'), o('custom', 'Një kombinim i caktuar', 'Custom combination')] },
+    { id: 'combine_text', screen: 'combine', type: 'text', req: true, sq: 'Cili kombinim?', ex: '(kryqëzimi DHE RSI) OSE breakout', en: 'Custom combination', show: eq('combine', 'custom') },
+    { id: 'seq', screen: 'combine', type: 'single', req: true, unk: true, sq: 'Kur duhet të ndodhin?', en: 'Timing between conditions', show: all({ q: 'cond', countGt: 1 }, { q: 'combine', nin: ['any'] }), options: [o('same', 'Në të njëjtën candle', 'All on the same candle'), o('order', 'Njëri pas tjetrit', 'In sequence')] },
+    { id: 'seq_order', screen: 'combine', type: 'text', req: true, sq: 'Në çfarë rendi?', ex: '1) kryqëzimi, 2) RSI kalon 50', en: 'Sequence order', show: eq('seq', 'order') },
+    { id: 'seq_window', screen: 'combine', type: 'number', req: true, unk: true, num: 'int', unit: 'candles', sq: 'Brenda sa candles duhet të ndodhë i gjithë rendi?', ex: '3', en: 'Sequence window', show: eq('seq', 'order') },
+    { id: 'seq_valid', screen: 'combine', type: 'single', req: true, unk: true, sq: 'Kur ndodh kushti i fundit, a duhet të jenë ende të vërteta kushtet e mëparshme?', en: 'Earlier conditions must still be valid', show: eq('seq', 'order'), options: [o('yes', 'Po, duhet të vlejnë ende', 'Yes, they must still hold'), o('no', 'Jo, mjafton që kanë ndodhur', 'No, it is enough that they happened')] },
+    { id: 'sig_candle', screen: 'combine', type: 'single', req: true, unk: true, sq: 'A pret që candle të mbyllet para se të vendosësh?', hint: 'Kur candle mbyllet, sinjali nuk ndryshon më.', en: 'Signal evaluated on', options: [o('closed', 'Po, pres që candle të mbyllet', 'Closed candle'), o('forming', 'Jo, vendos sapo kushtet plotësohen, edhe para mbylljes', 'Forming (unclosed) candle')] },
+    { id: 'mirror', screen: 'sell', type: 'single', req: true, sq: 'A është SELL e kundërta e saktë e BUY?', hint: 'E kundërta e saktë = çdo rregull përmbys: edhe hyrja, edhe Stop Loss, edhe Take Profit.', en: 'SELL is an exact mirror of BUY (entries and exits)', show: eq('sides', 'both'), options: [o('mirror', 'Po, saktësisht e kundërta', 'Yes, exact mirror including exits'), o('differs', 'Jo, SELL ndryshon', 'No, SELL differs')] },
+    { id: 'sell_entry', screen: 'sell', type: 'textarea', req: true, sq: 'Si hap SELL?', en: 'SELL entry rules', show: eq('mirror', 'differs') },
+    { id: 'sell_exits', screen: 'sell', type: 'single', req: true, sq: 'A ndryshojnë edhe Stop Loss, Take Profit ose menaxhimi për SELL?', en: 'SELL exits differ', show: eq('mirror', 'differs'), options: [o('same', 'Jo, janë si te BUY', 'No, same as BUY'), o('differ', 'Po, ndryshojnë', 'Yes, they differ')] },
+    { id: 'sell_exits_text', screen: 'sell', type: 'textarea', req: true, sq: 'Si ndryshojnë për SELL?', en: 'SELL exit rules', show: eq('sell_exits', 'differ') },
+    { id: 'own_words', screen: 'sell', type: 'textarea', opt: true, sq: 'Shpjegoje hyrjen me fjalët e tua, hap pas hapi', hint: 'Si t\'ia shpjegoje dikujt që s\'ka tregtuar kurrë.', en: 'Entry rule in the trader\'s own words' },
+
+    { id: 'exe', screen: 'order', type: 'single', req: true, unk: true, sq: 'Kur plotësohen kushtet, si e hap trade-in?', hint: 'Menjëherë = me çmimin aktual. Pending order = urdhër që pret derisa çmimi të arrijë një nivel.', en: 'Order execution after signal confirmation', options: [o('market_close', 'Menjëherë, sapo mbyllet candle e sinjalit', 'Market order immediately at the close of the signal candle'), o('market_now', 'Menjëherë, pa pritur mbylljen e candle-s', 'Market order the moment conditions are met (intrabar)'), o('stop', 'Me pending order (stop) pak përtej candle-s së sinjalit', 'Stop order beyond the signal candle'), o('limit', 'Me pending order (limit) te një nivel', 'Limit order at a level')] },
+    { id: 'pd_level', screen: 'order', type: 'text', req: true, sq: 'Ku e vendos pending order?', ex: 'mbi pikën më të lartë të candle-s së sinjalit', en: 'Pending order reference', show: inn('exe', ['stop', 'limit']) },
+    { id: 'pd_dist', screen: 'order', type: 'number', req: true, unk: true, num: 'nonneg', unit: 'usd', sq: 'Sa $ larg asaj pike?', ex: '0.5', en: 'Pending order distance from reference', show: inn('exe', ['stop', 'limit']) },
+    { id: 'pd_expiry', screen: 'order', type: 'number', req: true, unk: true, num: 'int', unit: 'candles', sq: 'Nëse nuk hapet, pas sa candles e fshin?', ex: '3', en: 'Pending order expiry', show: inn('exe', ['stop', 'limit']) },
+    { id: 'pd_dirchange', screen: 'order', type: 'single', req: true, unk: true, sq: 'Nëse ndryshon drejtimi i tregut:', en: 'Pending order when direction changes', show: inn('exe', ['stop', 'limit']), options: KEEP_CANCEL },
+    { id: 'pd_opposite', screen: 'order', type: 'single', req: true, unk: true, sq: 'Nëse del sinjal në drejtimin tjetër:', en: 'Pending order on opposite signal', show: inn('exe', ['stop', 'limit']), options: KEEP_CANCEL },
+    { id: 'pd_session', screen: 'order', type: 'single', req: true, unk: true, sq: 'Kur mbaron orari yt i tregtimit:', en: 'Pending order at end of trading hours', show: inn('exe', ['stop', 'limit']), options: KEEP_CANCEL },
+    { id: 'pd_news', screen: 'order', type: 'single', req: true, unk: true, sq: 'Kur afrohet një lajm që e shmang:', en: 'Pending order before an avoided news event', show: all(inn('exe', ['stop', 'limit']), eq('news', 'yes')), options: KEEP_CANCEL },
+
+    { id: 'new_signal', screen: 'repeat', type: 'single', req: true, unk: true, sq: 'Pasi mbyllet një trade, kur e quan sinjalin të ri?', hint: 'Ndonjëherë kushtet janë ende të plotësuara edhe pasi trade-i mbyllet.', en: 'Definition of a new signal', options: [o('reset', 'Kushtet duhet të prishen dhe të plotësohen sërish', 'Conditions must reset and form again'), o('new_candle', 'Çdo candle e re që i plotëson kushtet', 'Every new candle that meets the conditions')] },
+    { id: 'entries_per_signal', screen: 'repeat', type: 'single', req: true, unk: true, sq: 'Sa trade-e hap për të njëjtin sinjal?', en: 'Entries allowed per signal', options: [o('1', 'Vetëm një', 'Only one'), o('more', 'Më shumë se një', 'More than one')] },
+    { id: 'entries_n', screen: 'repeat', type: 'number', req: true, num: 'int', unit: 'count', sq: 'Sa gjithsej?', en: 'Entries per signal', show: eq('entries_per_signal', 'more') },
+    { id: 'cooldown', screen: 'repeat', type: 'single', req: true, unk: true, sq: 'Pasi mbyllet një trade, a pret pak para se të hapësh tjetrin?', en: 'Cooldown after a trade closes', options: [o('none', 'Jo', 'No cooldown'), o('candles', 'Po, disa candles', 'Yes, a number of candles'), o('minutes', 'Po, disa minuta', 'Yes, a number of minutes')] },
+    { id: 'cooldown_n', screen: 'repeat', type: 'number', req: true, num: 'int', unit: 'candles', sq: 'Sa candles?', en: 'Cooldown candles', show: eq('cooldown', 'candles') },
+    { id: 'cooldown_min', screen: 'repeat', type: 'number', req: true, num: 'int', unit: 'min', sq: 'Sa minuta?', en: 'Cooldown minutes', show: eq('cooldown', 'minutes') },
+    { id: 'opposite', screen: 'repeat', type: 'single', req: true, unk: true, sq: 'Ke një BUY të hapur dhe shfaqet sinjal për SELL. Çfarë bën?', en: 'Opposite signal while a trade is open', show: eq('sides', 'both'), options: [o('ignore', 'Asgjë: e lë BUY-n deri te Stop Loss ose Take Profit', 'Ignore it, trade runs to SL/TP'), o('close', 'E mbyll BUY-n', 'Close the open trade only'), o('reverse', 'E mbyll BUY-n dhe hap SELL', 'Close and open the opposite trade')] },
+
+    { id: 'skip', screen: 'skip', type: 'multi', req: true, unk: true, sq: 'A ka raste kur sinjali është aty, por ti nuk hyn?', en: 'Skip a valid signal when', options: [o('never', 'Jo, hyj gjithmonë', 'Never, always take valid signals'), o('far_ma', 'Kur çmimi është shumë larg një MA-je', 'Price too far from a MA'), o('big', 'Kur candle e sinjalit është shumë e madhe', 'Signal candle too big'), o('range', 'Kur tregu lëviz anash, pa drejtim', 'Market ranging'), o('level', 'Kur çmimi është afër një niveli të fortë', 'Too close to a strong level'), o('other', 'Tjetër', 'Other')] },
+    { id: 'skip_far_ma_which', screen: 'skip', type: 'text', req: true, sq: 'Cila MA?', ex: 'EMA 50 në M15', en: 'Skip: which MA', show: has('skip', 'far_ma') },
+    { id: 'skip_far_ma_usd', screen: 'skip', type: 'number', req: true, num: 'pos', unit: 'usd', sq: 'Sa larg është "shumë larg"?', ex: '8', en: 'Skip: max distance from MA', show: has('skip', 'far_ma') },
+    { id: 'skip_big_usd', screen: 'skip', type: 'number', req: true, num: 'pos', unit: 'usd', sq: 'Sa e madhe është "shumë e madhe" (nga pika më e lartë te më e ulëta)?', ex: '10', en: 'Skip: max signal candle range', show: has('skip', 'big') },
+    { id: 'skip_range', screen: 'skip', type: 'text', req: true, sq: 'Si e kupton që tregu lëviz anash?', ex: 'EMA 50 dhe EMA 200 janë brenda 2$ nga njëra-tjetra', en: 'Skip: ranging market definition', show: has('skip', 'range') },
+    { id: 'skip_level', screen: 'skip', type: 'text', req: true, sq: 'Cili nivel?', ex: 'pika më e lartë ose më e ulët e ditës së kaluar', en: 'Skip: which strong level', show: has('skip', 'level') },
+    { id: 'skip_level_usd', screen: 'skip', type: 'number', req: true, num: 'pos', unit: 'usd', sq: 'Nuk hyn kur je brenda sa $ prej tij?', ex: '3', en: 'Skip: distance to strong level', show: has('skip', 'level') },
+    { id: 'skip_other', screen: 'skip', type: 'text', req: true, sq: 'Cili rast tjetër, me numra?', en: 'Skip: other case', show: has('skip', 'other') },
+    { id: 'spread_filter', screen: 'skip', type: 'single', req: true, unk: true, sq: 'A duhet të mos hyjë roboti kur spread-i është shumë i lartë?', hint: 'Spread = diferenca mes çmimit të blerjes dhe të shitjes. Zakonisht rritet gjatë lajmeve dhe rreth mesnatës.', en: 'Max spread filter', options: [o('dev', 'Po, vlerën le ta vendosë zhvilluesi', 'Yes, developer sets a value for XAUUSD.r'), o('value', 'Po, kam një vlerë', 'Yes, trader value'), o('no', 'Jo, nuk e përdor', 'No spread filter')] },
+    { id: 'spread_value', screen: 'skip', type: 'number', req: true, num: 'pos', unit: 'usd', sq: 'Spread-i maksimal', ex: '0.40', en: 'Max spread', show: eq('spread_filter', 'value') },
+    { id: 'spread_block', screen: 'skip', type: 'single', req: true, unk: true, sq: 'Nëse spread-i është i lartë kur del sinjali:', en: 'When spread blocks entry', show: inn('spread_filter', ['dev', 'value']), options: [o('cancel', 'Sinjali anulohet', 'Signal is cancelled'), o('wait', 'Roboti pret derisa spread-i të bjerë', 'Wait for spread to drop')] },
+    { id: 'spread_wait', screen: 'skip', type: 'number', req: true, unk: true, num: 'int', unit: 'min', sq: 'Pret maksimum sa minuta?', ex: '5', en: 'Max wait for spread', show: eq('spread_block', 'wait') },
+    { id: 'spread_wait_valid', screen: 'skip', type: 'single', req: true, unk: true, sq: 'Pas pritjes, hyn vetëm nëse kushtet janë ende të plotësuara?', en: 'After waiting, conditions must still hold', show: eq('spread_block', 'wait'), options: [o('yes', 'Po', 'Yes, conditions must still hold'), o('no', 'Jo, hyn gjithsesi', 'No, enter anyway')] },
+
+    // ---------- Kur e mbyll? ----------
+    { id: 'sl_method', screen: 'sl', type: 'single', req: true, unk: true, sq: 'Ku e vendos Stop Loss?', en: 'Stop loss placement', options: [o('swing', 'Pak përtej majës ose gropës së fundit', 'Beyond the last swing low/high'), o('signal_candle', 'Pak përtej candle-s së sinjalit', 'Beyond the signal candle low/high'), o('fixed', 'Në një distancë fikse nga hyrja', 'Fixed distance'), o('atr', 'Sipas ATR (indikator që mat sa lëviz tregu)', 'ATR-based'), o('other', 'Tjetër', 'Other')] },
+    { id: 'sl_sw_def', screen: 'sl', type: 'single', req: true, unk: true, sq: 'Si e gjen gropën (për BUY) ose majën (për SELL)?', en: 'SL swing definition', show: eq('sl_method', 'swing'), options: [o('lowest_n', 'Pika më e ulët e disa candles të fundit', 'Lowest low of the last N candles'), o('fractal', 'Gropa e konfirmuar me candles në të dy anët', 'Confirmed swing (fractal) with N candles each side')] },
+    { id: 'sl_sw_n', screen: 'sl', type: 'number', req: true, num: 'int', unit: 'candles', sq: 'Sa candles?', ex: '10', en: 'SL swing candles', show: inn('sl_sw_def', ['lowest_n', 'fractal']) },
+    { id: 'sl_sw_buf', screen: 'sl', type: 'number', req: true, num: 'nonneg', unit: 'usd', sq: 'Sa $ përtej saj?', ex: '1', en: 'SL buffer beyond swing', show: eq('sl_method', 'swing') },
+    { id: 'sl_sc_buf', screen: 'sl', type: 'number', req: true, num: 'nonneg', unit: 'usd', sq: 'Sa $ përtej candle-s?', ex: '0.5', en: 'SL buffer beyond signal candle', show: eq('sl_method', 'signal_candle') },
+    { id: 'sl_fixed', screen: 'sl', type: 'number', req: true, num: 'pos', unit: 'usd', sq: 'Sa $ larg hyrjes?', hint: 'Kjo është lëvizje e çmimit të arit, jo para. Shembull: 5$ = nga 2650.00 në 2645.00.', en: 'SL fixed distance', show: eq('sl_method', 'fixed') },
+    { id: 'sl_atr_period', screen: 'sl', type: 'number', req: true, num: 'int', unit: 'period', sq: 'Periudha e ATR', ex: '14', en: 'SL ATR period', show: eq('sl_method', 'atr'), row: 'slatr' },
+    { id: 'sl_atr_mult', screen: 'sl', type: 'number', req: true, num: 'pos', unit: 'mult', sq: 'Shumëzuesi', ex: '1.5', en: 'SL ATR multiplier', show: eq('sl_method', 'atr'), row: 'slatr' },
+    { id: 'sl_atr_tf', screen: 'sl', type: 'single', req: true, sq: 'Timeframe i ATR', en: 'SL ATR timeframe', show: eq('sl_method', 'atr'), options: TF_SAME },
+    { id: 'sl_other', screen: 'sl', type: 'text', req: true, sq: 'Si e vendos saktë?', en: 'SL (own words)', show: eq('sl_method', 'other') },
+    { id: 'sl_max', screen: 'sl', type: 'single', req: true, unk: true, sq: 'Nëse Stop Loss del shumë larg, a e anashkalon trade-in?', en: 'Skip trade if SL is too large', options: [o('no', 'Jo, hyj gjithsesi', 'No, always take the trade'), o('yes', 'Po', 'Yes')] },
+    { id: 'sl_max_usd', screen: 'sl', type: 'number', req: true, num: 'pos', unit: 'usd', sq: 'Mbi sa $ larg?', ex: '15', en: 'Max SL distance', show: eq('sl_max', 'yes') },
+
+    { id: 'tp_method', screen: 'tp', type: 'single', req: true, unk: true, sq: 'Si e vendos Take Profit?', en: 'Take profit method', options: [o('r', 'Disa herë më larg se Stop Loss (p.sh. 1:2)', 'Multiple of the initial risk (R)'), o('level', 'Te një nivel në grafik', 'At a price level')] },
+    { id: 'tp_r', screen: 'tp', type: 'single', req: true, sq: 'Sa herë më larg se Stop Loss?', en: 'Take profit multiple', show: eq('tp_method', 'r'), options: [o('2', '2 herë (1:2)', '2R'), o('3', '3 herë (1:3)', '3R'), o('custom', 'Tjetër', 'Custom'), o('depends', 'Varet nga situata', 'Depends on conditions')] },
+    { id: 'tp_r_custom', screen: 'tp', type: 'number', req: true, num: 'pos', unit: 'r', sq: 'Sa herë saktë?', ex: '2.5', en: 'Take profit multiple (custom)', show: eq('tp_r', 'custom') },
+    { id: 'tp_depends', screen: 'tp', type: 'text', req: true, unk: true, sq: 'Kur zgjedh cilën?', ex: '1:3 kur tregu po ngrihet fort në H4, përndryshe 1:2', en: 'Take profit selection rule', show: eq('tp_r', 'depends') },
+    { id: 'tp_level', screen: 'tp', type: 'text', req: true, sq: 'Cili nivel?', ex: 'pika më e lartë e ditës së kaluar', en: 'Take profit level', show: eq('tp_method', 'level') },
+
+    { id: 'mg_be', screen: 'be', type: 'single', req: true, unk: true, sq: 'A e zhvendos Stop Loss te çmimi ku hape trade-in?', hint: 'Kështu, nëse çmimi kthehet, trade-i mbyllet pa humbje.', en: 'Break-even', options: [o('no', 'Jo, nuk e bëj', 'No (not used)'), o('yes', 'Po', 'Yes')] },
+    { id: 'be_trigger', screen: 'be', type: 'single', req: true, sq: 'Kur e zhvendos?', en: 'Break-even trigger', show: eq('mg_be', 'yes'), options: [o('r', 'Kur fitimi arrin sa distanca e Stop Loss, ose disa herë më shumë', 'When profit reaches X R'), o('usd', 'Kur çmimi lëviz disa $ në favorin tim', 'When price moves X USD in profit')] },
+    { id: 'be_trigger_r', screen: 'be', type: 'number', req: true, num: 'pos', unit: 'r', sq: 'Pas sa R?', hint: '1R = fitimi është sa distanca e Stop Loss.', ex: '1', en: 'Break-even trigger (R)', show: eq('be_trigger', 'r') },
+    { id: 'be_trigger_usd', screen: 'be', type: 'number', req: true, num: 'pos', unit: 'usd', sq: 'Pas sa $ lëvizje?', ex: '5', en: 'Break-even trigger (USD move)', show: eq('be_trigger', 'usd') },
+    { id: 'be_level', screen: 'be', type: 'single', req: true, unk: true, sq: 'Saktësisht ku e vendos?', en: 'New SL level at break-even', show: eq('mg_be', 'yes'), options: [o('entry', 'Saktë te çmimi i hyrjes', 'Exactly at entry'), o('entry_costs', 'Pak përtej, që të mbulohen kostot (spread, komision)', 'Entry plus costs (spread, commission)'), o('entry_plus', 'Disa $ përtej hyrjes', 'Entry plus a USD amount')] },
+    { id: 'be_plus', screen: 'be', type: 'number', req: true, num: 'pos', unit: 'usd', sq: 'Sa $ përtej?', ex: '0.5', en: 'Break-even offset', show: eq('be_level', 'entry_plus') },
+
+    { id: 'mg_partial', screen: 'partial', type: 'single', req: true, unk: true, sq: 'A mbyll një pjesë të trade-it përpara se të arrijë Take Profit?', en: 'Partial close', options: [o('no', 'Jo, nuk e bëj', 'No (not used)'), o('yes', 'Po', 'Yes')] },
+    { id: 'pc1_r', screen: 'partial', type: 'number', req: true, num: 'pos', unit: 'r', sq: 'Mbyllja e parë: kur?', ex: '1 (kur fitimi = sa Stop Loss)', en: 'Partial 1 at (R)', show: eq('mg_partial', 'yes'), row: 'pc1' },
+    { id: 'pc1_pct', screen: 'partial', type: 'number', req: true, num: 'pct', unit: 'pctv', sq: 'Sa % mbyll?', ex: '50', en: 'Partial 1 size', show: eq('mg_partial', 'yes'), row: 'pc1' },
+    { id: 'pc2_r', screen: 'partial', type: 'number', opt: true, num: 'pos', unit: 'r', sq: 'Mbyllja e dytë: kur?', en: 'Partial 2 at (R)', show: eq('mg_partial', 'yes'), row: 'pc2', pair: 'pc2_pct' },
+    { id: 'pc2_pct', screen: 'partial', type: 'number', opt: true, num: 'pct', unit: 'pctv', sq: 'Sa % mbyll?', en: 'Partial 2 size', show: eq('mg_partial', 'yes'), row: 'pc2', pair: 'pc2_r' },
+    { id: 'pc_base', screen: 'partial', type: 'single', req: true, unk: true, sq: 'Përqindja llogaritet nga:', en: 'Partial % based on', show: eq('mg_partial', 'yes'), options: [o('initial', 'Madhësia fillestare e trade-it', 'Initial volume'), o('remaining', 'Ajo që ka mbetur', 'Remaining volume')] },
+    { id: 'pc_rest', screen: 'partial', type: 'single', req: true, unk: true, sq: 'Pjesa që mbetet:', en: 'Remaining volume after partial', show: eq('mg_partial', 'yes'), options: [o('tp', 'Vazhdon deri te Take Profit ose Stop Loss', 'Runs to TP or SL'), o('be', 'Stop Loss shkon te hyrja', 'SL moves to break-even'), o('trail', 'Ndiqet me trailing stop', 'Managed by trailing stop')] },
+
+    { id: 'mg_trail', screen: 'trail', type: 'single', req: true, unk: true, sq: 'A përdor Stop Loss që ndjek çmimin (trailing stop)?', en: 'Trailing stop', options: YES_NOTUSED },
+    { id: 'tr_method', screen: 'trail', type: 'single', req: true, sq: 'Si e ndjek çmimin?', en: 'Trailing method', show: eq('mg_trail', 'yes'), options: [o('fixed', 'Në një distancë fikse në $', 'Fixed USD distance'), o('atr', 'Sipas ATR', 'ATR-based'), o('swing', 'Pas majës ose gropës së fundit', 'Behind the last swing'), o('candle', 'Pas candle-s së mëparshme', 'Behind the previous candle')] },
+    { id: 'tr_dist', screen: 'trail', type: 'number', req: true, num: 'pos', unit: 'usd', sq: 'Sa $ pas çmimit?', ex: '5', en: 'Trailing distance', show: eq('tr_method', 'fixed') },
+    { id: 'tr_atr', screen: 'trail', type: 'text', req: true, sq: 'Periudha dhe shumëzuesi i ATR', ex: 'ATR 14 × 2', en: 'Trailing ATR settings', show: eq('tr_method', 'atr') },
+    { id: 'tr_swing_n', screen: 'trail', type: 'number', req: true, num: 'int', unit: 'candles', sq: 'Sa candles në secilën anë e konfirmojnë gropën?', ex: '3', en: 'Trailing swing candles', show: eq('tr_method', 'swing') },
+    { id: 'tr_buf', screen: 'trail', type: 'number', req: true, num: 'nonneg', unit: 'usd', sq: 'Sa $ përtej?', ex: '0.5', en: 'Trailing buffer', show: inn('tr_method', ['swing', 'candle']) },
+    { id: 'tr_activate', screen: 'trail', type: 'single', req: true, unk: true, sq: 'Kur fillon të lëvizë?', en: 'Trailing activation', show: eq('mg_trail', 'yes'), options: [o('immediate', 'Menjëherë pas hyrjes', 'Immediately'), o('r', 'Kur fitimi arrin disa R', 'At X R profit'), o('usd', 'Kur çmimi lëviz disa $ në favorin tim', 'After X USD in profit')] },
+    { id: 'tr_act_r', screen: 'trail', type: 'number', req: true, num: 'pos', unit: 'r', sq: 'Pas sa R?', ex: '1', en: 'Trailing activation (R)', show: eq('tr_activate', 'r') },
+    { id: 'tr_act_usd', screen: 'trail', type: 'number', req: true, num: 'pos', unit: 'usd', sq: 'Pas sa $?', ex: '5', en: 'Trailing activation (USD)', show: eq('tr_activate', 'usd') },
+    { id: 'tr_step', screen: 'trail', type: 'number', opt: true, num: 'nonneg', unit: 'usd', sq: 'Me çfarë hapi lëviz?', hint: 'Lëre bosh nëse lëviz me çdo përmirësim të çmimit.', en: 'Trailing step', show: eq('mg_trail', 'yes') },
+    { id: 'tr_freq', screen: 'trail', type: 'single', req: true, unk: true, sq: 'Sa shpesh përditësohet?', en: 'Trailing update frequency', show: eq('mg_trail', 'yes'), options: [o('tick', 'Me çdo lëvizje të çmimit', 'Every tick'), o('candle', 'Kur mbyllet çdo candle', 'On each candle close')] },
+    { id: 'mg_priority', screen: 'trail', type: 'text', req: true, unk: true, sq: 'Nëse disa nga këto ndodhin në të njëjtën kohë, cila vjen e para?', ex: 'fillimisht mbyll pjesën, pastaj Stop Loss te hyrja, pastaj trailing', en: 'Priority between management rules', show: { countYes: ['mg_be', 'mg_partial', 'mg_trail'], gt: 1 } },
+
+    // ---------- Sa do të rrezikosh? ----------
+    { id: 'account_ccy', screen: 'account', type: 'single', req: true, unk: true, verify: 'dev', sq: 'Në cilën monedhë është llogaria?', hint: 'E sheh te MT5, poshtë te Toolbox, pranë Balance.', en: 'Account currency', options: [o('USD', 'USD'), o('EUR', 'EUR'), o('other', 'Tjetër', 'Other')] },
+    { id: 'account_ccy_other', screen: 'account', type: 'text', req: true, sq: 'Cila monedhë?', ex: 'GBP', max: 10, en: 'Account currency (other)', show: eq('account_ccy', 'other') },
+    { id: 'capital', screen: 'account', type: 'number', req: true, unk: true, num: 'pos', unit: 'ccy', sq: 'Me sa para planifikon ta përdorësh robotin?', hint: 'Shuma në llogari që do të përdorë roboti.', en: 'Planned trading capital' },
+    { id: 'account_kind', screen: 'account', type: 'single', req: true, unk: true, sq: 'Llogaria është:', en: 'Account kind', options: [o('personal', 'Personale', 'Personal'), o('prop', 'Prop firm (llogari e financuar nga një kompani)', 'Prop firm')] },
+    { id: 'prop_name', screen: 'account', type: 'text', req: true, sq: 'Cila prop firm?', en: 'Prop firm', show: eq('account_kind', 'prop') },
+    { id: 'prop_daily', screen: 'account', type: 'number', req: true, unk: true, num: 'pct', unit: 'pct', sq: 'Humbja maksimale në ditë që lejon', en: 'Prop firm daily loss limit', show: eq('account_kind', 'prop'), row: 'prop' },
+    { id: 'prop_maxdd', screen: 'account', type: 'number', req: true, unk: true, num: 'pct', unit: 'pct', sq: 'Humbja maksimale gjithsej që lejon', en: 'Prop firm max drawdown', show: eq('account_kind', 'prop'), row: 'prop' },
+    { id: 'prop_rules', screen: 'account', type: 'textarea', opt: true, sq: 'Rregulla të tjera të prop firm-ës', ex: 'pa trade-e gjatë lajmeve, pa trade-e të hapura në fundjavë', en: 'Other prop firm rules', show: eq('account_kind', 'prop') },
+    { id: 'other_trading', screen: 'account', type: 'single', req: true, unk: true, sq: 'A hap trade-e dikush ose diçka tjetër në të njëjtën llogari?', en: 'Other trading on the same account', options: [o('none', 'Jo, vetëm roboti', 'No, only this EA'), o('manual', 'Po, edhe unë me dorë', 'Yes, manual trades'), o('robots', 'Po, robotë të tjerë', 'Yes, other EAs'), o('both', 'Po, të dyja', 'Yes, manual trades and other EAs')] },
+
+    { id: 'size_method', screen: 'size', type: 'single', req: true, unk: true, sq: 'Si ta vendosë roboti madhësinë e çdo trade-i?', hint: 'Roboti përdor vetëm një nga këto mënyra. Kufijtë e tjerë të riskut vlejnë gjithsesi.', en: 'Position sizing method (only one active)', options: [
       o('fixed_lot', 'Lot fiks: e njëjta madhësi në çdo trade', 'Fixed lot: same volume on every trade'),
-      o('risk_pct', 'Risk në përqindje: roboti llogarit lot-in sipas % që zgjedh dhe distancës së Stop Loss-it', 'Risk %: volume computed from the chosen % and the SL distance'),
-      o('risk_money', 'Risk monetar fiks: roboti llogarit lot-in sipas shumës që do të rrezikosh deri te Stop Loss-i', 'Fixed money risk: volume computed from a fixed amount risked to the SL')] },
-    { id: 'size_info_fixed', step: 'risk', type: 'info', sq: 'Kujdes', text: 'Lot fiks nuk do të thotë humbje fikse. Kur ndryshon distanca e Stop Loss-it, ndryshon edhe shuma që humbet. P.sh. me kontratë standarde, 0.10 lot humbet rreth 50$ me SL 5$, por rreth 100$ me SL 10$.', show: eq('size_method', 'fixed_lot') },
-    { id: 'lot_fixed', step: 'risk', type: 'number', req: true, num: 'pos', unit: 'lot', sq: 'Sa lot për çdo trade?', en: 'Fixed lot per trade', ph: '0.10', show: eq('size_method', 'fixed_lot') },
-    { id: 'risk_pct', step: 'risk', type: 'number', req: true, num: 'pct', unit: 'pct', fact: 'risk', def: '1', sq: 'Sa %?', hint: 'Sa % e llogarisë humbet nëse trade mbyllet në SL.', en: 'Risk per trade', show: eq('size_method', 'risk_pct') },
-    { id: 'risk_base', step: 'risk', type: 'single', req: true, unk: true, sq: 'Nga balance apo equity?', en: 'Risk % calculated from', show: eq('size_method', 'risk_pct'), options: [o('balance', 'Balance: paratë në llogari, pa open trades', 'Balance'), o('equity', 'Equity: balance plus ose minus open trades', 'Equity')] },
-    { id: 'risk_money', step: 'risk', type: 'number', req: true, num: 'pos', unit: 'ccy', sq: 'Sa para për çdo trade?', hint: 'Shuma që humbet nëse trade mbyllet në SL.', en: 'Fixed money risk per trade', ph: '100', show: eq('size_method', 'risk_money') },
-    { id: 'lot_cap', step: 'risk', type: 'single', req: true, unk: true, sq: 'A dëshiron një kufi maksimal loti për çdo trade?', en: 'Maximum lot per trade', options: [o('no', 'Jo', 'No cap (broker maximum still applies)'), o('yes', 'Po', 'Yes')] },
-    { id: 'lot_cap_value', step: 'risk', type: 'number', req: true, num: 'pos', unit: 'lot', sq: 'Maksimumi i lot-it për trade', en: 'Max lot per trade', ph: '0.50', show: eq('lot_cap', 'yes') },
-    { id: 'size_conflict', step: 'risk', type: 'single', req: true, unk: true, sq: 'Nëse madhësia e kërkuar kalon një limit (max lot, limitet e risk-ut ose të brokerit), roboti:', hint: 'Roboti nuk e ndryshon madhësinë pa e regjistruar, dhe kurrë nuk e rrit mbi risk-un e lejuar.', en: 'When the requested size conflicts with a risk or broker limit', options: [o('skip', 'E anashkalon trade-in', 'Skip the trade'), o('reduce', 'E zvogëlon lot-in deri te limiti i lejuar', 'Reduce the volume down to the allowed limit')] },
-    { id: 'max_trades', step: 'risk', type: 'number', req: true, num: 'int', unit: 'count', fact: 'maxtrades', def: '3', sq: 'Max trades në ditë', en: 'Max trades per day' },
-    { id: 'max_open', step: 'risk', type: 'number', req: true, num: 'int', unit: 'count', sq: 'Sa trades mund të jenë open njëkohësisht?', en: 'Max positions open at the same time', ph: '1' },
-    { id: 'combined_risk', step: 'risk', type: 'number', req: true, unk: true, num: 'pct', unit: 'pct', sq: 'Max risk total i tyre', en: 'Max combined risk of open positions', show: { q: 'max_open', gt: 1 } },
-    { id: 'count_partial', step: 'risk', type: 'single', req: true, unk: true, sq: 'Trade me partial close numërohet si:', en: 'Partially closed trade counts as', show: eq('mg_partial', 'yes'), options: [o('one', 'Një trade', 'One trade'), o('each', 'Çdo partial close si trade më vete', 'Each partial close counts as a trade')] },
-    { id: 'after_win', step: 'risk', type: 'single', req: true, unk: true, sq: 'Nëse trade i parë i ditës del win, a vazhdon?', en: 'After a winning trade', options: [o('continue', 'Po, deri në max trades të ditës', 'Keep trading up to the daily max'), o('stop', 'Jo, ndalem për atë ditë', 'Stop for the day after a win')] },
-    { id: 'loss_stop', step: 'risk', type: 'single', req: true, unk: true, sq: 'A ndalet pas disa losses, para se të arrijë max trades?', en: 'Stop after losses', options: [o('none', 'Jo', 'No'), o('consecutive', 'Po, pas disa losses radhazi', 'Yes, after consecutive losses'), o('total', 'Po, pas disa losses gjithsej në ditë', 'Yes, after total losses in the day')] },
-    { id: 'loss_stop_n', step: 'risk', type: 'number', req: true, num: 'int', unit: 'count', sq: 'Pas sa losses?', en: 'Losses before stopping', ph: '2', show: inn('loss_stop', ['consecutive', 'total']) },
-    { id: 'be_counts', step: 'risk', type: 'single', req: true, unk: true, sq: 'Trade që mbyllet në break-even, për këtë rregull quhet:', en: 'Break-even close counts as', show: all(inn('loss_stop', ['consecutive', 'total']), eq('mg_be', 'yes')), options: [o('neutral', 'As win, as loss', 'Neither win nor loss'), o('loss', 'Loss', 'Loss'), o('win', 'Win', 'Win')] },
-    { id: 'daily_loss', step: 'risk', type: 'single', req: true, unk: true, sq: 'A ka daily loss limit në %, përveç max trades?', en: 'Daily loss limit', options: [o('no', 'Jo', 'No'), o('yes', 'Po', 'Yes')] },
-    { id: 'dl_pct', step: 'risk', type: 'number', req: true, num: 'pct', unit: 'pct', sq: 'Daily loss limit', en: 'Daily loss limit', ph: '2', show: eq('daily_loss', 'yes') },
-    { id: 'dl_base', step: 'risk', type: 'single', req: true, unk: true, sq: 'Ky % llogaritet nga:', en: 'Daily limit base', show: eq('daily_loss', 'yes'), options: [o('balance_start', 'Balance në fillim të ditës', 'Balance at start of day'), o('equity_start', 'Equity në fillim të ditës', 'Equity at start of day')] },
-    { id: 'dl_floating', step: 'risk', type: 'single', req: true, unk: true, sq: 'Përfshin floating loss të open trades?', en: 'Daily limit includes floating losses', show: eq('daily_loss', 'yes'), options: [o('yes', 'Po', 'Yes, includes open positions'), o('no', 'Jo, vetëm closed trades', 'No, closed trades only')] },
-    { id: 'dl_scope', step: 'risk', type: 'single', req: true, unk: true, sq: 'Vlen për:', en: 'Daily limit scope', show: eq('daily_loss', 'yes'), options: [o('robot', 'Vetëm trades e robotit', 'This EA only'), o('account', 'Gjithë llogarinë', 'Whole account')] },
-    { id: 'dl_action', step: 'risk', type: 'single', req: true, unk: true, sq: 'Kur arrihet limit-i, roboti:', en: 'Action when daily limit is hit', show: eq('daily_loss', 'yes'), options: [o('stop', 'Nuk hap trades të reja', 'Stops new entries'), o('stop_cancel', 'Nuk hap të reja dhe fshin pending orders', 'Stops entries and cancels pending orders'), o('stop_cancel_close', 'Edhe mbyll open trades', 'Stops entries, cancels pending orders and closes open positions')] },
-    { id: 'day_reset', step: 'risk', type: 'single', req: true, unk: true, sq: 'Dita e re (numërimi i trades dhe limitet) fillon:', en: 'Daily reset time', options: [o('albania', 'Në mesnatë, ora e Shqipërisë', 'Midnight, Albania time (Europe/Tirane)'), o('server', 'Në mesnatë, ora e serverit të Tauro', 'Midnight, broker server time'), o('other', 'Në një orë tjetër', 'Other time')] },
-    { id: 'day_reset_other', step: 'risk', type: 'text', req: true, sq: 'Në cilën orë dhe sipas cilës zonë kohore?', en: 'Daily reset (other)', ph: 'P.sh. 08:00 ora e Shqipërisë', show: eq('day_reset', 'other') },
-    { id: 'account_kind', step: 'risk', type: 'single', req: true, unk: true, sq: 'Llogaria është:', en: 'Account kind', options: [o('personal', 'Personale', 'Personal'), o('prop', 'Prop firm (llogari e financuar)', 'Prop firm')] },
-    { id: 'prop_name', step: 'risk', type: 'text', req: true, sq: 'Cila prop firm?', en: 'Prop firm', show: eq('account_kind', 'prop') },
-    { id: 'prop_daily', step: 'risk', type: 'number', req: true, unk: true, num: 'pct', unit: 'pct', sq: 'Daily loss limit', en: 'Prop firm daily loss limit', show: eq('account_kind', 'prop'), row: 'prop' },
-    { id: 'prop_maxdd', step: 'risk', type: 'number', req: true, unk: true, num: 'pct', unit: 'pct', sq: 'Max drawdown', en: 'Prop firm max drawdown', show: eq('account_kind', 'prop'), row: 'prop' },
-    { id: 'prop_rules', step: 'risk', type: 'textarea', opt: true, sq: 'Rregulla të tjera të prop firm-ës', en: 'Other prop firm rules', ph: 'P.sh. pa trades gjatë news, pa positions gjatë fundjavës', show: eq('account_kind', 'prop') },
-    { id: 'other_trading', step: 'risk', type: 'single', req: true, unk: true, sq: 'A bën trade dikush ose diçka tjetër në të njëjtën llogari?', en: 'Other trading on the same account', options: [o('none', 'Jo, vetëm roboti', 'No, only this EA'), o('manual', 'Po, unë manualisht', 'Yes, manual trades'), o('robots', 'Po, robotë të tjerë', 'Yes, other EAs'), o('both', 'Po, të dyja', 'Yes, manual trades and other EAs')] },
+      o('risk_pct', 'Përqindje e llogarisë: humbja në Stop Loss është gjithmonë e njëjta % e llogarisë', 'Risk %: volume computed from the chosen % and the SL distance'),
+      o('risk_money', 'Shumë fikse në para: humbja në Stop Loss është gjithmonë e njëjta shumë', 'Fixed money risk: volume computed from a fixed amount risked to the SL')] },
+    { id: 'size_info_fixed', screen: 'size', type: 'info', sq: 'Kujdes me lot fiks', text: 'Me lot fiks, humbja ndryshon nga trade në trade, sepse varet nga sa larg është Stop Loss. Shembull: 0.10 lot humbet rreth 50 USD kur Stop Loss është 5$ larg, por rreth 100 USD kur është 10$ larg.', show: eq('size_method', 'fixed_lot') },
+    { id: 'size_info_pct', screen: 'size', type: 'info', sq: 'Si funksionon', text: 'Roboti zgjedh lot-in që humbja në Stop Loss të jetë përqindja që shkruan, pavarësisht sa larg është Stop Loss. Shembull: me 10,000 USD në llogari dhe 0.5%, humbja në Stop Loss do të ishte rreth 50 USD.', show: eq('size_method', 'risk_pct') },
+    { id: 'size_info_money', screen: 'size', type: 'info', sq: 'Si funksionon', text: 'Roboti zgjedh lot-in që humbja në Stop Loss të jetë shuma që shkruan. Kjo është shumë në para, jo lëvizje e çmimit të arit.', show: eq('size_method', 'risk_money') },
+    { id: 'lot_fixed', screen: 'size', type: 'number', req: true, num: 'pos', unit: 'lot', sq: 'Sa lot për çdo trade?', ex: '0.10', en: 'Fixed lot per trade', show: eq('size_method', 'fixed_lot') },
+    { id: 'risk_pct', screen: 'size', type: 'number', req: true, num: 'pct', unit: 'pct', fact: 'risk', sq: 'Sa % e llogarisë humbet një trade që mbyllet në Stop Loss?', en: 'Risk per trade', show: eq('size_method', 'risk_pct') },
+    { id: 'risk_base', screen: 'size', type: 'single', req: true, unk: true, sq: 'Përqindja llogaritet nga:', en: 'Risk % calculated from', show: eq('size_method', 'risk_pct'), options: [o('balance', 'Balance: paratë në llogari, pa trade-et e hapura', 'Balance'), o('equity', 'Equity: balance plus ose minus fitimi/humbja e trade-eve të hapura', 'Equity')] },
+    { id: 'risk_money', screen: 'size', type: 'number', req: true, num: 'pos', unit: 'ccy', sq: 'Sa para humbet një trade që mbyllet në Stop Loss?', en: 'Fixed money risk per trade', show: eq('size_method', 'risk_money') },
+    { id: 'lot_cap', screen: 'size', type: 'single', req: true, unk: true, sq: 'A do një kufi maksimal për madhësinë e trade-it?', en: 'Maximum lot per trade', options: [o('no', 'Jo', 'No cap (broker maximum still applies)'), o('yes', 'Po', 'Yes')] },
+    { id: 'lot_cap_value', screen: 'size', type: 'number', req: true, num: 'pos', unit: 'lot', sq: 'Maksimumi', ex: '0.50', en: 'Max lot per trade', show: eq('lot_cap', 'yes') },
+    { id: 'size_conflict', screen: 'size', type: 'single', req: true, unk: true, sq: 'Nëse madhësia e llogaritur kalon një kufi, roboti:', hint: 'Roboti nuk e rrit kurrë madhësinë mbi riskun e lejuar dhe e shënon çdo ndryshim.', en: 'When the requested size conflicts with a risk or broker limit', options: [o('skip', 'E anashkalon trade-in', 'Skip the trade'), o('reduce', 'E zvogëlon deri te kufiri', 'Reduce the volume down to the allowed limit')] },
 
-    // ---------- 6. SL, TP dhe menaxhimi ----------
-    { id: 'sl_method', step: 'exits', type: 'single', req: true, unk: true, sq: 'Ku e vendos Stop Loss-in?', en: 'Stop loss placement', options: [o('swing', 'Përtej swing low/high të fundit', 'Beyond the last swing low/high'), o('signal_candle', 'Përtej signal candle', 'Beyond the signal candle low/high'), o('fixed', 'Distancë fikse', 'Fixed distance'), o('atr', 'Me ATR', 'ATR-based'), o('other', 'Tjetër', 'Other')] },
-    { id: 'sl_sw_def', step: 'exits', type: 'single', req: true, unk: true, sq: 'Si e gjen swing low?', en: 'SL swing definition', show: eq('sl_method', 'swing'), options: [o('lowest_n', 'Low më i ulët i disa candles të fundit', 'Lowest low of the last N candles'), o('fractal', 'Swing low i konfirmuar me candles në të dy anët', 'Confirmed swing (fractal) with N candles each side')] },
-    { id: 'sl_sw_n', step: 'exits', type: 'number', req: true, num: 'int', unit: 'candles', sq: 'Sa candles?', en: 'SL swing candles', ph: '10', show: inn('sl_sw_def', ['lowest_n', 'fractal']) },
-    { id: 'sl_sw_buf', step: 'exits', type: 'number', req: true, num: 'nonneg', unit: 'usd', sq: 'Sa $ përtej swing low?', en: 'SL buffer beyond swing', ph: '1', show: eq('sl_method', 'swing') },
-    { id: 'sl_sc_buf', step: 'exits', type: 'number', req: true, num: 'nonneg', unit: 'usd', sq: 'Sa $ përtej candle?', en: 'SL buffer beyond signal candle', ph: '0.5', show: eq('sl_method', 'signal_candle') },
-    { id: 'sl_fixed', step: 'exits', type: 'number', req: true, num: 'pos', unit: 'usd', sq: 'Sa $ larg entry-t?', en: 'SL fixed distance', ph: '5', show: eq('sl_method', 'fixed') },
-    { id: 'sl_atr_period', step: 'exits', type: 'number', req: true, num: 'int', unit: 'period', sq: 'Periudha e ATR', en: 'SL ATR period', ph: '14', show: eq('sl_method', 'atr'), row: 'slatr' },
-    { id: 'sl_atr_mult', step: 'exits', type: 'number', req: true, num: 'pos', unit: 'mult', sq: 'Multiplier', en: 'SL ATR multiplier', ph: '1.5', show: eq('sl_method', 'atr'), row: 'slatr' },
-    { id: 'sl_atr_tf', step: 'exits', type: 'single', req: true, sq: 'Timeframe i ATR', en: 'SL ATR timeframe', show: eq('sl_method', 'atr'), options: TF_SAME },
-    { id: 'sl_other', step: 'exits', type: 'text', req: true, sq: 'Si e vendos saktë?', en: 'SL (own words)', show: eq('sl_method', 'other') },
-    { id: 'sl_max', step: 'exits', type: 'single', req: true, unk: true, sq: 'Nëse SL del shumë i madh, e anashkalon trade-in?', en: 'Skip trade if SL is too large', options: [o('no', 'Jo, bëj entry gjithmonë', 'No, always take the trade'), o('yes', 'Po', 'Yes')] },
-    { id: 'sl_max_usd', step: 'exits', type: 'number', req: true, num: 'pos', unit: 'usd', sq: 'Nëse SL është më i madh se:', en: 'Max SL distance', ph: '15', show: eq('sl_max', 'yes') },
-    { id: 'tp_method', step: 'exits', type: 'single', req: true, unk: true, sq: 'Si e vendos Take Profit-in?', en: 'Take profit method', options: [o('r', 'Si shumëfish i 1R', 'Multiple of the initial risk (R)'), o('level', 'Te një level', 'At a price level')] },
-    { id: 'tp_r', step: 'exits', type: 'single', req: true, sq: 'Sa R?', en: 'Take profit multiple', show: eq('tp_method', 'r'), options: [o('2', '1:2 (2R)', '2R'), o('3', '1:3 (3R)', '3R'), o('custom', 'Tjetër', 'Custom'), o('depends', 'Varet', 'Depends on conditions')] },
-    { id: 'tp_r_custom', step: 'exits', type: 'number', req: true, num: 'pos', unit: 'r', sq: 'Sa R saktë?', en: 'Take profit multiple (custom)', ph: '2.5', show: eq('tp_r', 'custom') },
-    { id: 'tp_depends', step: 'exits', type: 'text', req: true, unk: true, sq: 'Kur zgjedh cilin R, saktë?', en: 'Take profit selection rule', ph: 'P.sh. 3R kur çmimi është mbi EMA 200 në H4, përndryshe 2R', show: eq('tp_r', 'depends') },
-    { id: 'tp_level', step: 'exits', type: 'text', req: true, sq: 'Cili level?', en: 'Take profit level', ph: 'P.sh. high i ditës së kaluar', show: eq('tp_method', 'level') },
-    { id: 'mg_be', step: 'exits', type: 'single', req: true, unk: true, sq: 'E kalon SL-në në break-even?', en: 'Break-even', options: YESNO },
-    { id: 'be_trigger', step: 'exits', type: 'single', req: true, sq: 'Kur?', en: 'Break-even trigger', show: eq('mg_be', 'yes'), options: [o('r', 'Kur profit-i arrin disa R', 'When profit reaches X R'), o('usd', 'Kur çmimi lëviz disa $ në profit', 'When price moves X USD in profit')] },
-    { id: 'be_trigger_r', step: 'exits', type: 'number', req: true, num: 'pos', unit: 'r', sq: 'Sa R?', en: 'Break-even trigger (R)', ph: '1', show: eq('be_trigger', 'r') },
-    { id: 'be_trigger_usd', step: 'exits', type: 'number', req: true, num: 'pos', unit: 'usd', sq: 'Sa $?', en: 'Break-even trigger (USD move)', ph: '5', show: eq('be_trigger', 'usd') },
-    { id: 'be_level', step: 'exits', type: 'single', req: true, unk: true, sq: 'Ku shkon SL-ja e re?', en: 'New SL level at break-even', show: eq('mg_be', 'yes'), options: [o('entry', 'Saktë te entry', 'Exactly at entry'), o('entry_costs', 'Te entry plus kostot (spread, commission)', 'Entry plus costs (spread, commission)'), o('entry_plus', 'Te entry plus disa $', 'Entry plus a USD amount')] },
-    { id: 'be_plus', step: 'exits', type: 'number', req: true, num: 'pos', unit: 'usd', sq: 'Sa $ mbi entry?', en: 'Break-even offset', ph: '0.5', show: eq('be_level', 'entry_plus') },
-    { id: 'mg_partial', step: 'exits', type: 'single', req: true, unk: true, sq: 'Bën partial close para TP-së?', en: 'Partial close', options: YESNO },
-    { id: 'pc1_r', step: 'exits', type: 'number', req: true, num: 'pos', unit: 'r', sq: 'Partial close 1: te sa R?', en: 'Partial 1 at (R)', ph: '1', show: eq('mg_partial', 'yes'), row: 'pc1' },
-    { id: 'pc1_pct', step: 'exits', type: 'number', req: true, num: 'pct', unit: 'pctv', sq: 'Sa %?', en: 'Partial 1 size', ph: '50', show: eq('mg_partial', 'yes'), row: 'pc1' },
-    { id: 'pc2_r', step: 'exits', type: 'number', opt: true, num: 'pos', unit: 'r', sq: 'Partial close 2: te sa R?', en: 'Partial 2 at (R)', show: eq('mg_partial', 'yes'), row: 'pc2', pair: 'pc2_pct' },
-    { id: 'pc2_pct', step: 'exits', type: 'number', opt: true, num: 'pct', unit: 'pctv', sq: 'Sa %?', en: 'Partial 2 size', show: eq('mg_partial', 'yes'), row: 'pc2', pair: 'pc2_r' },
-    { id: 'pc_base', step: 'exits', type: 'single', req: true, unk: true, sq: 'Përqindja llogaritet nga:', en: 'Partial % based on', show: eq('mg_partial', 'yes'), options: [o('initial', 'Volume fillestar', 'Initial volume'), o('remaining', 'Volume që ka mbetur', 'Remaining volume')] },
-    { id: 'pc_rest', step: 'exits', type: 'single', req: true, unk: true, sq: 'Pjesa që mbetet:', en: 'Remaining volume after partial', show: eq('mg_partial', 'yes'), options: [o('tp', 'Vazhdon deri te TP ose SL', 'Runs to TP or SL'), o('be', 'SL kalon në break-even', 'SL moves to break-even'), o('trail', 'Ndiqet me trailing stop', 'Managed by trailing stop')] },
-    { id: 'mg_trail', step: 'exits', type: 'single', req: true, unk: true, sq: 'Përdor trailing stop?', en: 'Trailing stop', options: YESNO },
-    { id: 'tr_method', step: 'exits', type: 'single', req: true, sq: 'Si e ndjek çmimin?', en: 'Trailing method', show: eq('mg_trail', 'yes'), options: [o('fixed', 'Me distancë fikse në $', 'Fixed USD distance'), o('atr', 'Me ATR', 'ATR-based'), o('swing', 'Pas swing low/high të fundit', 'Behind the last swing'), o('candle', 'Pas candle-it të mëparshëm', 'Behind the previous candle')] },
-    { id: 'tr_dist', step: 'exits', type: 'number', req: true, num: 'pos', unit: 'usd', sq: 'Sa $ prapa çmimit?', en: 'Trailing distance', ph: '5', show: eq('tr_method', 'fixed') },
-    { id: 'tr_atr', step: 'exits', type: 'text', req: true, sq: 'Periudha dhe shumëzuesi i ATR', en: 'Trailing ATR settings', ph: 'P.sh. ATR 14 × 2', show: eq('tr_method', 'atr') },
-    { id: 'tr_swing_n', step: 'exits', type: 'number', req: true, num: 'int', unit: 'candles', sq: 'Swing low konfirmohet me sa candles në secilën anë?', en: 'Trailing swing candles', ph: '3', show: eq('tr_method', 'swing') },
-    { id: 'tr_buf', step: 'exits', type: 'number', req: true, num: 'nonneg', unit: 'usd', sq: 'Sa $ përtej?', en: 'Trailing buffer', ph: '0.5', show: inn('tr_method', ['swing', 'candle']) },
-    { id: 'tr_activate', step: 'exits', type: 'single', req: true, unk: true, sq: 'Kur aktivizohet?', en: 'Trailing activation', show: eq('mg_trail', 'yes'), options: [o('immediate', 'Menjëherë pas entry', 'Immediately'), o('r', 'Kur profit-i arrin disa R', 'At X R profit'), o('usd', 'Kur çmimi lëviz disa $ në profit', 'After X USD in profit')] },
-    { id: 'tr_act_r', step: 'exits', type: 'number', req: true, num: 'pos', unit: 'r', sq: 'Sa R?', en: 'Trailing activation (R)', ph: '1', show: eq('tr_activate', 'r') },
-    { id: 'tr_act_usd', step: 'exits', type: 'number', req: true, num: 'pos', unit: 'usd', sq: 'Sa $?', en: 'Trailing activation (USD)', ph: '5', show: eq('tr_activate', 'usd') },
-    { id: 'tr_step', step: 'exits', type: 'number', opt: true, num: 'nonneg', unit: 'usd', sq: 'Trailing step minimal', hint: 'Lëre bosh nëse SL lëviz me çdo përmirësim.', en: 'Trailing step', ph: '0.5', show: eq('mg_trail', 'yes') },
-    { id: 'tr_freq', step: 'exits', type: 'single', req: true, unk: true, sq: 'Sa shpesh përditësohet?', en: 'Trailing update frequency', show: eq('mg_trail', 'yes'), options: [o('tick', 'Me çdo lëvizje të çmimit', 'Every tick'), o('candle', 'Në mbyllje të çdo candle', 'On each candle close')] },
-    { id: 'mg_priority', step: 'exits', type: 'text', req: true, unk: true, sq: 'Nëse disa rregulla aktivizohen njëkohësisht, cili ka përparësi?', en: 'Priority between management rules', ph: 'P.sh. fillimisht partial close, pastaj break-even, pastaj trailing', show: { countYes: ['mg_be', 'mg_partial', 'mg_trail'], gt: 1 } },
+    { id: 'max_trades', screen: 'limits', type: 'number', req: true, num: 'int', unit: 'count', fact: 'maxtrades', sq: 'Sa trade-e në ditë, maksimumi?', en: 'Max trades per day' },
+    { id: 'max_open', screen: 'limits', type: 'number', req: true, num: 'int', unit: 'count', sq: 'Sa trade-e mund të jenë të hapura në të njëjtën kohë?', en: 'Max positions open at the same time' },
+    { id: 'combined_risk', screen: 'limits', type: 'number', req: true, unk: true, num: 'pct', unit: 'pct', sq: 'Sa % e llogarisë mund të jetë në risk gjithsej për trade-et e hapura njëkohësisht?', en: 'Max combined risk of open positions', show: { q: 'max_open', gt: 1 } },
+    { id: 'count_partial', screen: 'limits', type: 'single', req: true, unk: true, sq: 'Një trade që mbyllet me pjesë numërohet si:', en: 'Partially closed trade counts as', show: eq('mg_partial', 'yes'), options: [o('one', 'Një trade', 'One trade'), o('each', 'Çdo pjesë si trade më vete', 'Each partial close counts as a trade')] },
+    { id: 'after_win', screen: 'limits', type: 'single', req: true, unk: true, sq: 'Nëse trade-i i parë i ditës fiton, a vazhdon atë ditë?', en: 'After a winning trade', options: [o('continue', 'Po, deri te maksimumi i ditës', 'Keep trading up to the daily max'), o('stop', 'Jo, ndalem', 'Stop for the day after a win')] },
+    { id: 'loss_stop', screen: 'limits', type: 'single', req: true, unk: true, sq: 'A ndalon pas disa humbjeve atë ditë?', en: 'Stop after losses', options: [o('none', 'Jo', 'No'), o('consecutive', 'Po, pas disa humbjeve radhazi', 'Yes, after consecutive losses'), o('total', 'Po, pas disa humbjeve gjithsej', 'Yes, after total losses in the day')] },
+    { id: 'loss_stop_n', screen: 'limits', type: 'number', req: true, num: 'int', unit: 'count', sq: 'Pas sa humbjeve?', en: 'Losses before stopping', show: inn('loss_stop', ['consecutive', 'total']) },
+    { id: 'be_counts', screen: 'limits', type: 'single', req: true, unk: true, sq: 'Një trade që mbyllet te hyrja (pa fitim, pa humbje) quhet:', en: 'Break-even close counts as', show: all(inn('loss_stop', ['consecutive', 'total']), eq('mg_be', 'yes')), options: [o('neutral', 'As fitim, as humbje', 'Neither win nor loss'), o('loss', 'Humbje', 'Loss'), o('win', 'Fitim', 'Win')] },
+    { id: 'daily_loss', screen: 'limits', type: 'single', req: true, unk: true, sq: 'A ka një kufi humbjeje për ditë, në %?', en: 'Daily loss limit', options: YES_NOTUSED },
+    { id: 'dl_pct', screen: 'limits', type: 'number', req: true, num: 'pct', unit: 'pct', sq: 'Sa %?', en: 'Daily loss limit', show: eq('daily_loss', 'yes') },
+    { id: 'dl_base', screen: 'limits', type: 'single', req: true, unk: true, sq: 'Llogaritet nga:', en: 'Daily limit base', show: eq('daily_loss', 'yes'), options: [o('balance_start', 'Balance në fillim të ditës', 'Balance at start of day'), o('equity_start', 'Equity në fillim të ditës', 'Equity at start of day')] },
+    { id: 'dl_floating', screen: 'limits', type: 'single', req: true, unk: true, sq: 'A llogarit edhe humbjen e trade-eve ende të hapura?', en: 'Daily limit includes floating losses', show: eq('daily_loss', 'yes'), options: [o('yes', 'Po', 'Yes, includes open positions'), o('no', 'Jo, vetëm trade-et e mbyllura', 'No, closed trades only')] },
+    { id: 'dl_scope', screen: 'limits', type: 'single', req: true, unk: true, sq: 'Vlen për:', en: 'Daily limit scope', show: eq('daily_loss', 'yes'), options: [o('robot', 'Vetëm trade-et e robotit', 'This EA only'), o('account', 'Gjithë llogarinë', 'Whole account')] },
+    { id: 'dl_action', screen: 'limits', type: 'single', req: true, unk: true, sq: 'Kur arrihet ky kufi, roboti:', en: 'Action when daily limit is hit', show: eq('daily_loss', 'yes'), options: [o('stop', 'Nuk hap trade-e të reja', 'Stops new entries'), o('stop_cancel', 'Nuk hap të reja dhe fshin pending orders', 'Stops entries and cancels pending orders'), o('stop_cancel_close', 'Mbyll edhe trade-et e hapura', 'Stops entries, cancels pending orders and closes open positions')] },
+    { id: 'day_reset', screen: 'limits', type: 'single', req: true, unk: true, sq: 'Kur fillon "dita e re" për këto kufij?', en: 'Daily reset time', options: [o('albania', 'Në mesnatë, ora e Shqipërisë', 'Midnight, Albania time (Europe/Tirane)'), o('server', 'Në mesnatë, ora e serverit të Tauro (ora e MT5)', 'Midnight, broker server time'), o('other', 'Në një orë tjetër', 'Other time')] },
+    { id: 'day_reset_other', screen: 'limits', type: 'text', req: true, sq: 'Në cilën orë dhe sipas cilës zonë kohore?', ex: '08:00, ora e Shqipërisë', en: 'Daily reset (other)', show: eq('day_reset', 'other') },
 
-    // ---------- 7. Oraret dhe lajmet ----------
-    { id: 'days', step: 'time', type: 'multi', req: true, sq: 'Në cilat ditë bën trade?', en: 'Trading days', options: [o('mon', 'E hënë', 'Mon'), o('tue', 'E martë', 'Tue'), o('wed', 'E mërkurë', 'Wed'), o('thu', 'E enjte', 'Thu'), o('fri', 'E premte', 'Fri')] },
-    { id: 't_from', step: 'time', type: 'time', req: true, unk: true, sq: 'Nga ora', en: 'Trading hours from', row: 'hours' },
-    { id: 't_to', step: 'time', type: 'time', req: true, unk: true, sq: 'Deri në orën', en: 'Trading hours to', row: 'hours' },
-    { id: 't_tz', step: 'time', type: 'single', req: true, unk: true, sq: 'Sipas cilës orë?', en: 'Timezone of trading hours', options: [o('albania', 'Ora e Shqipërisë', 'Albania time (Europe/Tirane)'), o('utc', 'UTC'), o('ny', 'Ora e New York-ut', 'New York time'), o('server', 'Ora e serverit të Tauro', 'Broker server time')] },
-    { id: 't_dst', step: 'time', type: 'single', req: true, unk: true, sq: 'Kur ndërrohet ora verore/dimërore:', en: 'DST handling', show: { q: 't_tz', nin: ['utc', UNKNOWN] }, options: [o('follow', 'Oraret mbeten të njëjta sipas orës lokale', 'Hours follow local clock (DST-aware)'), o('fixed', 'Oraret mbeten fikse sipas UTC', 'Hours stay fixed in UTC all year')] },
-    { id: 'end_positions', step: 'time', type: 'single', req: true, unk: true, sq: 'Kur mbarojnë trading hours, open trades:', en: 'Open positions at end of trading hours', options: [o('keep', 'I lë deri te SL ose TP', 'Keep until SL/TP'), o('close', 'I mbyll', 'Close them')] },
-    { id: 'friday', step: 'time', type: 'single', req: true, unk: true, sq: 'Mbyll gjithçka para fundjavës?', en: 'Close before the weekend', options: YESNO },
-    { id: 'friday_time', step: 'time', type: 'time', req: true, sq: 'Të premten në orën:', hint: 'Sipas zonës kohore të mësipërme.', en: 'Friday close time', show: eq('friday', 'yes') },
-    { id: 'friday_pending', step: 'time', type: 'single', req: true, sq: 'Edhe pending orders?', en: 'Friday: pending orders', show: all(eq('friday', 'yes'), inn('exe', ['stop', 'limit'])), options: [o('cancel', 'Po, i fshin', 'Cancel them'), o('keep', 'Jo, i lë', 'Keep them')] },
-    { id: 'news', step: 'time', type: 'single', req: true, unk: true, sq: 'I shmang high-impact news?', en: 'News filter', options: YESNO },
-    { id: 'news_events', step: 'time', type: 'multi', req: true, sq: 'Cilat news?', en: 'News events avoided', show: eq('news', 'yes'), options: [o('nfp', 'NFP'), o('cpi', 'CPI'), o('fomc', 'FOMC / Fed rate decision', 'FOMC / Fed rate decision'), o('usd_high', 'Çdo high-impact news i USD', 'All high-impact USD news'), o('other', 'Tjetër', 'Other')] },
-    { id: 'news_other', step: 'time', type: 'text', req: true, sq: 'Cilat të tjera?', en: 'Other news events', show: has('news_events', 'other') },
-    { id: 'news_before', step: 'time', type: 'number', req: true, num: 'nonneg', unit: 'min', sq: 'Minuta para', en: 'Minutes before news', ph: '30', show: eq('news', 'yes'), row: 'news' },
-    { id: 'news_after', step: 'time', type: 'number', req: true, num: 'nonneg', unit: 'min', sq: 'Minuta pas', en: 'Minutes after news', ph: '30', show: eq('news', 'yes'), row: 'news' },
-    { id: 'news_open', step: 'time', type: 'single', req: true, unk: true, sq: 'Open trades para news:', en: 'Open positions before news', show: eq('news', 'yes'), options: [o('keep', 'I lë', 'Keep'), o('close', 'I mbyll', 'Close before the news'), o('be', 'I kaloj në break-even', 'Move SL to break-even')] },
-    { id: 'push', step: 'time', type: 'single', req: true, sq: 'Push notifications në telefon kur hapet ose mbyllet trade?', en: 'Phone push notifications', options: YESNO },
+    // ---------- Në cilat orare tregton? ----------
+    { id: 'days', screen: 'hours', type: 'multi', req: true, sq: 'Në cilat ditë tregton?', en: 'Trading days', options: [o('mon', 'E hënë', 'Mon'), o('tue', 'E martë', 'Tue'), o('wed', 'E mërkurë', 'Wed'), o('thu', 'E enjte', 'Thu'), o('fri', 'E premte', 'Fri')] },
+    { id: 't_from', screen: 'hours', type: 'time', req: true, unk: true, sq: 'Nga ora', en: 'Trading hours from', row: 'hours' },
+    { id: 't_to', screen: 'hours', type: 'time', req: true, unk: true, sq: 'Deri në orën', en: 'Trading hours to', row: 'hours' },
+    { id: 't_tz', screen: 'hours', type: 'single', req: true, unk: true, sq: 'Këto orë janë sipas orës së:', en: 'Timezone of trading hours', options: [o('albania', 'Shqipërisë', 'Albania time (Europe/Tirane)'), o('utc', 'UTC', 'UTC'), o('ny', 'New York-ut', 'New York time'), o('server', 'Serverit të Tauro (ora e MT5)', 'Broker server time')] },
+    { id: 't_dst', screen: 'hours', type: 'single', req: true, unk: true, sq: 'Kur ndërrohet ora verore/dimërore:', en: 'DST handling', show: { q: 't_tz', nin: ['utc', UNKNOWN] }, options: [o('follow', 'Oraret mbeten të njëjta sipas orës lokale', 'Hours follow local clock (DST-aware)'), o('fixed', 'Oraret mbeten fikse sipas UTC', 'Hours stay fixed in UTC all year')] },
+    { id: 'end_positions', screen: 'hours', type: 'single', req: true, unk: true, sq: 'Kur mbaron orari, çfarë bën me trade-et e hapura?', en: 'Open positions at end of trading hours', options: [o('keep', 'I lë deri te Stop Loss ose Take Profit', 'Keep until SL/TP'), o('close', 'I mbyll', 'Close them')] },
+    { id: 'friday', screen: 'hours', type: 'single', req: true, unk: true, sq: 'A i mbyll të gjitha para fundjavës?', en: 'Close before the weekend', options: [o('no', 'Jo', 'No'), o('yes', 'Po', 'Yes')] },
+    { id: 'friday_time', screen: 'hours', type: 'time', req: true, sq: 'Të premten në orën:', hint: 'Sipas të njëjtës orë si më lart.', en: 'Friday close time', show: eq('friday', 'yes') },
+    { id: 'friday_pending', screen: 'hours', type: 'single', req: true, sq: 'Edhe pending orders?', en: 'Friday: pending orders', show: all(eq('friday', 'yes'), inn('exe', ['stop', 'limit'])), options: [o('cancel', 'Po, i fshin', 'Cancel them'), o('keep', 'Jo, i lë', 'Keep them')] },
 
-    // ---------- 8. Backtest-i ----------
-    { id: 'tv_feed', step: 'backtest', type: 'single', req: true, unk: true, sq: 'Cilin grafik ari përdore në TradingView?', hint: 'Shkruhet lart majtas në grafik.', en: 'TradingView gold chart', options: [o('oanda', 'OANDA:XAUUSD'), o('fxcm', 'FXCM / FX:XAUUSD'), o('tvc', 'TVC:GOLD'), o('other', 'Tjetër', 'Other')] },
-    { id: 'tv_feed_other', step: 'backtest', type: 'text', req: true, sq: 'Si quhet saktë?', en: 'TradingView chart (other)', ph: 'P.sh. PEPPERSTONE:XAUUSD', show: eq('tv_feed', 'other') },
-    { id: 'tv_tz', step: 'backtest', type: 'single', req: true, unk: true, sq: 'Në cilën orë e ke grafikun në TradingView?', hint: 'Poshtë djathtas në grafik.', en: 'TradingView chart timezone', options: [o('albania', 'Ora e Shqipërisë', 'Albania (Europe/Tirane)'), o('utc', 'UTC'), o('ny', 'New York')] },
-    { id: 'candle_type', step: 'backtest', type: 'single', req: true, unk: true, sq: 'Çfarë candles përdore?', en: 'Candle type in backtest', options: [o('standard', 'Candles standarde (Japanese candlesticks)', 'Standard candlesticks'), o('ha', 'Heikin Ashi'), o('other', 'Tjetër', 'Other')] },
-    { id: 'candle_type_other', step: 'backtest', type: 'text', req: true, sq: 'Cilët?', en: 'Candle type (other)', show: eq('candle_type', 'other') },
-    { id: 'bt_from', step: 'backtest', type: 'date', req: true, unk: true, sq: 'Backtest-i nga data', en: 'Backtest from', row: 'btdates' },
-    { id: 'bt_to', step: 'backtest', type: 'date', req: true, unk: true, sq: 'deri më', en: 'Backtest to', row: 'btdates' },
-    { id: 'bt_trades', step: 'backtest', type: 'single', req: true, unk: true, sq: 'Sa trades dolën gjithsej?', en: 'Trades in backtest', options: [o('lt20', 'Nën 20', 'Under 20'), o('20_40', '20–40'), o('40_60', '40–60'), o('gt60', 'Mbi 60', 'Over 60'), o('exact', 'E di saktë', 'Exact number')] },
-    { id: 'bt_trades_n', step: 'backtest', type: 'number', req: true, num: 'int', unit: 'count', sq: 'Sa saktë?', en: 'Trades in backtest (exact)', show: eq('bt_trades', 'exact') },
-    { id: 'bt_winrate', step: 'backtest', type: 'single', req: true, unk: true, sq: 'Sa ishte win rate?', en: 'Win rate in backtest', options: [o('lt45', 'Nën 45%', 'Under 45%'), o('45_50', '45–50%'), o('50_55', '50–55%'), o('55_60', '55–60%'), o('gt60', 'Mbi 60%', 'Over 60%'), o('exact', 'E di saktë', 'Exact value')] },
-    { id: 'bt_winrate_n', step: 'backtest', type: 'number', req: true, num: 'pct', unit: 'pct', sq: 'Sa % saktë?', en: 'Win rate (exact)', show: eq('bt_winrate', 'exact') },
-    { id: 'bt_same_candle', step: 'backtest', type: 'single', req: true, unk: true, sq: 'Kur SL dhe TP preknin në të njëjtin candle, si e numërove?', en: 'SL and TP hit in the same candle (manual backtest)', options: [o('loss', 'Si loss', 'Counted as loss'), o('win', 'Si win', 'Counted as win'), o('lower_tf', 'E kontrollova në timeframe më të vogël', 'Checked on a lower timeframe'), o('never', 'Nuk ndodhi asnjëherë', 'Never happened')] },
-    { id: 'bt_records', step: 'backtest', type: 'single', req: true, sq: 'A i ke shënuar trades?', en: 'Backtest trades recorded', options: [o('sheet', 'Po, në Excel/Sheets', 'Yes, in a spreadsheet (can be shared)'), o('chart', 'Po, në grafik', 'Yes, marked on TradingView'), o('none', 'Jo', 'Not recorded')] },
-    { id: 'examples', step: 'backtest', type: 'examples', req: true, sq: 'Shembuj', en: 'Examples' },
-    { id: 'acc_info', step: 'backtest', type: 'info', sq: 'Kontrolli i robotit', text: 'Me këto rregulla kontrollojmë që roboti zbaton saktë strategjinë tënde. Nuk premtojnë profit në të ardhmen.' },
-    { id: 'acc_period', step: 'backtest', type: 'single', req: true, sq: 'Në cilën periudhë e krahasojmë robotin me backtest-in tënd?', en: 'Comparison period', options: [o('same', 'Në të njëjtën periudhë si backtest-i im', 'Same period as the trader backtest'), o('other', 'Në një periudhë tjetër', 'Other period')] },
-    { id: 'acc_period_text', step: 'backtest', type: 'text', req: true, sq: 'Cila periudhë?', en: 'Comparison period (other)', show: eq('acc_period', 'other') },
-    { id: 'acc_costs', step: 'backtest', type: 'single', req: true, unk: true, sq: 'Krahasimi bëhet:', en: 'Costs in comparison', options: [o('real', 'Me spread-in dhe komisionin real të Tauro', 'With real Tauro spread and commission'), o('none', 'Pa kosto, si në TradingView', 'Without costs, as on TradingView')] },
-    { id: 'acc_entry_tol', step: 'backtest', type: 'number', req: true, unk: true, num: 'nonneg', unit: 'usd', sq: 'Sa $ mund të ndryshojë entry price nga i yti?', hint: 'Grafiku i TradingView dhe i Tauro nuk kanë saktësisht të njëjtat çmime.', en: 'Accepted entry price deviation', ph: '0.5' },
-    { id: 'acc_time_tol', step: 'backtest', type: 'single', req: true, unk: true, sq: 'Entry i robotit duhet të jetë:', en: 'Accepted entry time deviation', options: [o('same_candle', 'Në të njëjtin candle si i yti', 'Same candle'), o('one_candle', 'Brenda 1 candle', 'Within 1 candle')] },
-    { id: 'acc_match', step: 'backtest', type: 'single', req: true, unk: true, sq: 'Sa nga trades e tua duhet t\'i hapë edhe roboti?', en: 'Required trade match', options: [o('all', 'Të gjitha', 'All trades'), o('explained', 'Të gjitha, përveç dallimeve që shpjegohen nga çmimet ose kostot', 'All, except differences explained by price feed or costs')] },
-    { id: 'notes', step: 'backtest', type: 'textarea', opt: true, sq: 'Diçka tjetër që duhet ta dimë?', en: 'Other notes' }
+    { id: 'news', screen: 'news', type: 'single', req: true, unk: true, sq: 'A e shmang tregtimin gjatë lajmeve të mëdha ekonomike?', hint: 'Shembuj: NFP, CPI, vendimet e Fed-it për normat e interesit.', en: 'News filter', options: [o('no', 'Jo, nuk i shmang', 'No (not used)'), o('yes', 'Po', 'Yes')] },
+    { id: 'news_events', screen: 'news', type: 'multi', req: true, sq: 'Cilat lajme?', en: 'News events avoided', show: eq('news', 'yes'), options: [o('nfp', 'NFP'), o('cpi', 'CPI'), o('fomc', 'FOMC dhe vendimi i Fed-it', 'FOMC / Fed rate decision'), o('usd_high', 'Çdo lajm i rëndësishëm i USD', 'All high-impact USD news'), o('other', 'Tjetër', 'Other')] },
+    { id: 'news_other', screen: 'news', type: 'text', req: true, sq: 'Cilat të tjera?', en: 'Other news events', show: has('news_events', 'other') },
+    { id: 'news_before', screen: 'news', type: 'number', req: true, num: 'nonneg', unit: 'min', sq: 'Sa minuta para?', ex: '30', en: 'Minutes before news', show: eq('news', 'yes'), row: 'news' },
+    { id: 'news_after', screen: 'news', type: 'number', req: true, num: 'nonneg', unit: 'min', sq: 'Sa minuta pas?', ex: '30', en: 'Minutes after news', show: eq('news', 'yes'), row: 'news' },
+    { id: 'news_open', screen: 'news', type: 'single', req: true, unk: true, sq: 'Trade-et e hapura para lajmit:', en: 'Open positions before news', show: eq('news', 'yes'), options: [o('keep', 'I lë', 'Keep'), o('close', 'I mbyll', 'Close before the news'), o('be', 'E çoj Stop Loss te hyrja', 'Move SL to break-even')] },
+    { id: 'push', screen: 'news', type: 'single', req: true, sq: 'A do njoftim në telefon kur roboti hap ose mbyll një trade?', en: 'Phone push notifications', options: [o('yes', 'Po', 'Yes'), o('no', 'Jo', 'No')] },
+
+    // ---------- Na trego disa shembuj. ----------
+    { id: 'tv_feed', screen: 'backtest', type: 'single', req: true, unk: true, sq: 'Cilin grafik ari ke përdorur në TradingView?', hint: 'Shkruhet lart majtas në grafik.', en: 'TradingView gold chart', options: [o('oanda', 'OANDA:XAUUSD'), o('fxcm', 'FXCM / FX:XAUUSD'), o('tvc', 'TVC:GOLD'), o('other', 'Tjetër', 'Other')] },
+    { id: 'tv_feed_other', screen: 'backtest', type: 'text', req: true, sq: 'Si quhet saktë?', ex: 'PEPPERSTONE:XAUUSD', en: 'TradingView chart (other)', show: eq('tv_feed', 'other') },
+    { id: 'tv_tz', screen: 'backtest', type: 'single', req: true, unk: true, sq: 'Në cilën orë e ke grafikun në TradingView?', hint: 'Shkruhet poshtë djathtas në grafik.', en: 'TradingView chart timezone', options: [o('albania', 'Ora e Shqipërisë', 'Albania (Europe/Tirane)'), o('utc', 'UTC'), o('ny', 'New York')] },
+    { id: 'candle_type', screen: 'backtest', type: 'single', req: true, unk: true, sq: 'Çfarë lloj candles ke përdorur?', en: 'Candle type in backtest', options: [o('standard', 'Candles të zakonshme', 'Standard candlesticks'), o('ha', 'Heikin Ashi'), o('other', 'Tjetër', 'Other')] },
+    { id: 'candle_type_other', screen: 'backtest', type: 'text', req: true, sq: 'Cilat?', en: 'Candle type (other)', show: eq('candle_type', 'other') },
+    { id: 'bt_from', screen: 'backtest', type: 'date', req: true, unk: true, sq: 'Testi nga data', en: 'Backtest from', row: 'btdates' },
+    { id: 'bt_to', screen: 'backtest', type: 'date', req: true, unk: true, sq: 'deri më', en: 'Backtest to', row: 'btdates' },
+    { id: 'bt_trades', screen: 'backtest', type: 'single', req: true, unk: true, sq: 'Sa trade-e dolën gjithsej?', en: 'Trades in backtest', options: [o('lt20', 'Nën 20', 'Under 20'), o('20_40', '20–40'), o('40_60', '40–60'), o('gt60', 'Mbi 60', 'Over 60'), o('exact', 'E di numrin e saktë', 'Exact number')] },
+    { id: 'bt_trades_n', screen: 'backtest', type: 'number', req: true, num: 'int', unit: 'count', sq: 'Sa saktë?', en: 'Trades in backtest (exact)', show: eq('bt_trades', 'exact') },
+    { id: 'bt_winrate', screen: 'backtest', type: 'single', req: true, unk: true, sq: 'Sa prej tyre fituan, afërsisht?', en: 'Win rate in backtest', options: [o('lt45', 'Nën 45%', 'Under 45%'), o('45_50', '45–50%'), o('50_55', '50–55%'), o('55_60', '55–60%'), o('gt60', 'Mbi 60%', 'Over 60%'), o('exact', 'E di përqindjen e saktë', 'Exact value')] },
+    { id: 'bt_winrate_n', screen: 'backtest', type: 'number', req: true, num: 'pct', unit: 'pct', sq: 'Sa % saktë?', en: 'Win rate (exact)', show: eq('bt_winrate', 'exact') },
+    { id: 'bt_same_candle', screen: 'backtest', type: 'single', req: true, unk: true, sq: 'Kur në të njëjtën candle preknin edhe Stop Loss edhe Take Profit, si e numërove?', en: 'SL and TP hit in the same candle (manual backtest)', options: [o('loss', 'Si humbje', 'Counted as loss'), o('win', 'Si fitim', 'Counted as win'), o('lower_tf', 'E kontrollova në timeframe më të vogël', 'Checked on a lower timeframe'), o('never', 'Nuk ndodhi asnjëherë', 'Never happened')] },
+    { id: 'bt_records', screen: 'backtest', type: 'single', req: true, sq: 'A i ke shënuar trade-et diku?', en: 'Backtest trades recorded', options: [o('sheet', 'Po, në Excel ose Sheets', 'Yes, in a spreadsheet (can be shared)'), o('chart', 'Po, në grafik', 'Yes, marked on TradingView'), o('none', 'Jo', 'Not recorded')] },
+
+    { id: 'examples', screen: 'examples', type: 'examples', req: true, sq: 'Shembuj', en: 'Examples' },
+    { id: 'settings_photos', screen: 'examples', type: 'settings', sq: 'Foto të cilësimeve të indikatorëve', en: 'Indicator settings photos' },
+
+    { id: 'acc_period', screen: 'acceptance', type: 'single', req: true, sq: 'Në cilën periudhë ta krahasojmë robotin me testin tënd?', en: 'Comparison period', options: [o('same', 'Në të njëjtën periudhë si testi im', 'Same period as the trader backtest'), o('other', 'Në një periudhë tjetër', 'Other period')] },
+    { id: 'acc_period_text', screen: 'acceptance', type: 'text', req: true, sq: 'Cila periudhë?', en: 'Comparison period (other)', show: eq('acc_period', 'other') },
+    { id: 'acc_costs', screen: 'acceptance', type: 'single', req: true, unk: true, sq: 'A ta bëjmë krahasimin me kostot reale të Tauro?', hint: 'Kosto = spread dhe komision. TradingView zakonisht nuk i llogarit.', en: 'Costs in comparison', options: [o('real', 'Po, me spread-in dhe komisionin real', 'With real Tauro spread and commission'), o('none', 'Jo, pa kosto, si në TradingView', 'Without costs, as on TradingView')] },
+    { id: 'acc_entry_tol', screen: 'acceptance', type: 'number', req: true, unk: true, num: 'nonneg', unit: 'usd', sq: 'Sa $ mund të ndryshojë çmimi i hyrjes së robotit nga i yti?', hint: 'TradingView dhe Tauro nuk kanë saktësisht të njëjtat çmime.', ex: '0.5', en: 'Accepted entry price deviation' },
+    { id: 'acc_time_tol', screen: 'acceptance', type: 'single', req: true, unk: true, sq: 'Hyrja e robotit duhet të jetë:', en: 'Accepted entry time deviation', options: [o('same_candle', 'Në të njëjtën candle si e jotja', 'Same candle'), o('one_candle', 'Brenda 1 candle-s', 'Within 1 candle')] },
+    { id: 'acc_match', screen: 'acceptance', type: 'single', req: true, unk: true, sq: 'Sa nga trade-et e tua duhet t\'i hapë edhe roboti?', en: 'Required trade match', options: [o('all', 'Të gjitha', 'All trades'), o('explained', 'Të gjitha, përveç dallimeve që shpjegohen nga çmimet ose kostot', 'All, except differences explained by price feed or costs')] },
+    { id: 'notes', screen: 'acceptance', type: 'textarea', opt: true, sq: 'Diçka tjetër që duhet ta dimë?', en: 'Other notes' }
   ];
 
   // Fushat e një shembulli
   var EX = [
-    { id: 'kind', type: 'single', req: true, sq: 'Lloji', en: 'Type', options: [o('buy', 'BUY'), o('sell', 'SELL'), o('noentry', 'Pa entry (roboti NUK duhet të hyjë)', 'Case where the EA must NOT enter')] },
-    { id: 'result', type: 'single', req: true, sq: 'Rezultati', en: 'Result', show: { ex: 'kind', in: ['buy', 'sell'] }, options: [o('win', 'Win', 'Winner'), o('loss', 'Loss', 'Loser')] },
+    { id: 'kind', type: 'single', req: true, sq: 'Çfarë tregon ky shembull?', en: 'Type', options: [o('buy', 'Një trade BUY', 'BUY'), o('sell', 'Një trade SELL', 'SELL'), o('noentry', 'Një rast kur NUK hyra', 'Case where the EA must NOT enter')] },
+    { id: 'result', type: 'single', req: true, sq: 'Si përfundoi?', en: 'Result', show: { ex: 'kind', in: ['buy', 'sell'] }, options: [o('win', 'Fitoi', 'Winner'), o('loss', 'Humbi', 'Loser')] },
     { id: 'date', type: 'date', req: true, sq: 'Data', en: 'Date', row: 'dt' },
-    { id: 'time', type: 'time', req: true, sq: 'Ora e candle-it', en: 'Candle time', row: 'dt' },
-    { id: 'tf', type: 'single', req: true, sq: 'Timeframe', en: 'Timeframe', options: TF },
-    { id: 'entry', type: 'number', req: true, num: 'pos', unit: 'price', sq: 'Entry', en: 'Entry price', show: { ex: 'kind', in: ['buy', 'sell'] }, row: 'px' },
-    { id: 'sl', type: 'number', req: true, num: 'pos', unit: 'price', sq: 'SL', en: 'Stop loss price', show: { ex: 'kind', in: ['buy', 'sell'] }, row: 'px' },
-    { id: 'tp', type: 'number', req: true, num: 'pos', unit: 'price', sq: 'TP', en: 'Take profit price', show: { ex: 'kind', in: ['buy', 'sell'] }, row: 'px' },
-    { id: 'why', type: 'textarea', req: true, sq: 'Pse bëre entry, ose pse jo?', en: 'Explanation' }
+    { id: 'time', type: 'time', sq: 'Ora e candle-s, nëse e di', en: 'Candle time', row: 'dt' },
+    { id: 'tf', type: 'single', sq: 'Timeframe, nëse e mban mend', en: 'Timeframe', options: TF },
+    { id: 'entry', type: 'number', num: 'pos', unit: 'price', sq: 'Çmimi i hyrjes', en: 'Entry price', show: { ex: 'kind', in: ['buy', 'sell'] }, row: 'px' },
+    { id: 'sl', type: 'number', num: 'pos', unit: 'price', sq: 'Stop Loss', en: 'Stop loss price', show: { ex: 'kind', in: ['buy', 'sell'] }, row: 'px' },
+    { id: 'tp', type: 'number', num: 'pos', unit: 'price', sq: 'Take Profit', en: 'Take profit price', show: { ex: 'kind', in: ['buy', 'sell'] }, row: 'px' },
+    { id: 'why', type: 'textarea', req: true, sq: 'Pse hyre, ose pse nuk hyre?', en: 'Explanation' },
+    { id: 'photoNote', type: 'text', sq: 'Përshkrim i shkurtër i fotos', en: 'Photo description', photo: true }
   ];
 
+  var SCREEN_SECTION = {};
+  SCREENS.forEach(function (s) { SCREEN_SECTION[s.id] = s.section; });
+  Q.forEach(function (q) { q.step = SCREEN_SECTION[q.screen]; });
+  var STEPS = SECTIONS;
+
+  var NON_ANSWER = { info: true, facts: true, examples: true, settings: true };
   var byId = {};
   Q.forEach(function (q) { byId[q.id] = q; });
 
@@ -438,14 +491,14 @@
     return UNITS[q.unit][lang];
   }
   function optLabel(q, v, lang) {
-    if (v === UNKNOWN) return lang === 'sq' ? 'Nuk e di — duhet sqaruar' : 'UNKNOWN — needs clarification';
+    if (v === UNKNOWN) return lang === 'sq' ? UNKNOWN_SQ : UNKNOWN_EN;
     for (var i = 0; i < (q.options || []).length; i++) if (q.options[i].v === v) return q.options[i][lang];
     return String(v);
   }
   function display(q, state, lang) {
     var a = state.answers || {};
     var v = a[q.id];
-    if (q.type !== 'single' && q.type !== 'multi' && a['?' + q.id]) return { text: lang === 'sq' ? 'Nuk e di — duhet sqaruar' : 'UNKNOWN — needs clarification', unknown: true };
+    if (q.type !== 'single' && q.type !== 'multi' && a['?' + q.id]) return { text: lang === 'sq' ? UNKNOWN_SQ : UNKNOWN_EN, unknown: true };
     if (isEmpty(v)) return null;
     if (q.type === 'single') return { text: optLabel(q, v, lang), unknown: v === UNKNOWN };
     if (q.type === 'multi') return { text: v.map(function (x) { return optLabel(q, x, lang); }).join(', '), unknown: v.indexOf(UNKNOWN) >= 0 };
@@ -483,7 +536,7 @@
     vis.forEach(function (id) { visSet[id] = true; });
     vis.forEach(function (id) {
       var q = byId[id];
-      if (q.type === 'info' || q.type === 'facts' || q.type === 'examples') return;
+      if (NON_ANSWER[q.type]) return;
       var unknown = isUnknownVal(state, id);
       var v = a[id];
       if (unknown) return;
@@ -497,23 +550,26 @@
     });
     // Marrëdhënie që e bëjnë përgjigjen të pavlefshme
     if (visSet.t_from && visSet.t_to && !a['?t_from'] && !a['?t_to'] && a.t_from && a.t_to && a.t_from === a.t_to) errors.push({ id: 't_to', step: 'time', msg: 'Ora e fillimit dhe e mbarimit nuk mund të jenë të njëjta.' });
-    if (visSet.bt_from && visSet.bt_to && !a['?bt_from'] && !a['?bt_to'] && a.bt_from && a.bt_to && a.bt_from > a.bt_to) errors.push({ id: 'bt_to', step: 'backtest', msg: 'Data e mbarimit duhet të jetë pas datës së fillimit.' });
+    if (visSet.bt_from && visSet.bt_to && !a['?bt_from'] && !a['?bt_to'] && a.bt_from && a.bt_to && a.bt_from > a.bt_to) errors.push({ id: 'bt_to', step: 'examples', msg: 'Data e mbarimit duhet të jetë pas datës së fillimit.' });
     if (visSet.mg_partial && a.mg_partial === 'yes' && a.pc_base === 'initial') {
       var sum = [parseNum(a.pc1_pct), parseNum(a.pc2_pct)].filter(function (n) { return !isNaN(n); }).reduce(function (s, n) { return s + n; }, 0);
-      if (sum > 100) errors.push({ id: 'pc1_pct', step: 'exits', msg: 'Përqindjet e partial close nga volume fillestar kalojnë 100%.' });
+      if (sum > 100) errors.push({ id: 'pc1_pct', step: 'exit', msg: 'Përqindjet nga madhësia fillestare kalojnë 100% gjithsej.' });
     }
     // Shembujt
     var exs = state.examples || [];
-    if (exs.length < MIN_EXAMPLES) errors.push({ id: 'examples', step: 'backtest', msg: 'Shto të paktën ' + MIN_EXAMPLES + ' shembuj.' });
-    if (exs.length > MAX_EXAMPLES) errors.push({ id: 'examples', step: 'backtest', msg: 'Maksimumi ' + MAX_EXAMPLES + ' shembuj.' });
+    if (exs.length < MIN_EXAMPLES) errors.push({ id: 'examples', step: 'examples', msg: 'Shto të paktën një shembull.' });
+    if (exs.length > MAX_EXAMPLES) errors.push({ id: 'examples', step: 'examples', msg: 'Maksimumi ' + MAX_EXAMPLES + ' shembuj.' });
+    var sp = state.settingsPhotos || [];
+    if (sp.length > MAX_SETTINGS_PHOTOS) errors.push({ id: 'settings_photos', step: 'examples', msg: 'Maksimumi ' + MAX_SETTINGS_PHOTOS + ' foto cilësimesh.' });
+    sp.forEach(function (p, i) { var le = p && p.note ? lengthError(String(p.note).length, MAX_LEN_EX.text) : null; if (le) errors.push({ id: 'sp:' + i, step: 'examples', msg: le }); });
     exs.forEach(function (ex, i) {
       EX.forEach(function (f) {
         if (!exVisible(f, ex)) return;
         var v = ex[f.id];
         var key = 'ex:' + i + ':' + f.id;
-        if (isEmpty(v)) { if (f.req) errors.push({ id: key, step: 'backtest', msg: 'Plotëso këtë fushë të shembullit ' + (i + 1) + '.' }); return; }
+        if (isEmpty(v)) { if (f.req) errors.push({ id: key, step: 'examples', msg: 'Plotëso këtë fushë të shembullit ' + (i + 1) + '.' }); return; }
         var fe = lengthError(String(v).length, maxFor(f, true)) || validFormat(f, v);
-        if (fe) errors.push({ id: key, step: 'backtest', msg: fe });
+        if (fe) errors.push({ id: key, step: 'examples', msg: fe });
       });
     });
     return errors;
@@ -528,13 +584,17 @@
     var unresolved = [];
     var contradictions = [];
     var assumptions = [];
+    var devChecks = [];
     function V(id) { return visSet[id] && !isUnknownVal(state, id) ? a[id] : undefined; }
     function N(id) { return parseNum(V(id)); }
     function add(list, sq, en, id) { list.push({ sq: sq, en: en, id: id || null }); }
 
     vis.forEach(function (id) {
       var q = byId[id];
-      if (isUnknownVal(state, id)) add(unresolved, fill(q.sq, state) + ': nuk e di', q.en + ': UNKNOWN', id);
+      if (!isUnknownVal(state, id)) return;
+      var label = fill(q.sq, state).replace(/[:?]\s*$/, '');
+      if (q.verify === 'dev') add(devChecks, label + ': do ta verifikojë zhvilluesi', q.en + ': unknown to the client, developer to verify on the account', id);
+      else add(unresolved, label, q.en + ': ' + UNKNOWN_EN, id);
     });
 
     if (a.facts_review === 'fix') add(contradictions, 'Klienti tha që një fakt i konfirmuar nuk është i saktë: ' + (a.facts_fix || ''), 'Client flagged a confirmed fact as wrong: ' + (a.facts_fix || ''), 'facts_fix');
@@ -581,10 +641,13 @@
     var kinds = exs.map(function (e) { return e.kind; });
     var results = exs.map(function (e) { return e.result; });
     if (exs.length) {
-      if (results.indexOf('win') < 0) add(unresolved, 'Mungon një shembull win.', 'No winning example provided.');
-      if (results.indexOf('loss') < 0) add(unresolved, 'Mungon një shembull loss.', 'No losing example provided.');
-      if (kinds.indexOf('noentry') < 0) add(unresolved, 'Mungon një rast pa entry (ku roboti NUK duhet të hyjë).', 'No "must not enter" example provided.');
-      if (a.sides === 'both' && (kinds.indexOf('buy') < 0 || kinds.indexOf('sell') < 0)) add(unresolved, 'Mungojnë shembuj për të dy drejtimet (BUY dhe SELL).', 'Examples do not cover both BUY and SELL.');
+      if (results.indexOf('win') < 0) add(unresolved, 'Shto një trade që ka fituar.', 'No winning example provided.', 'examples');
+      if (results.indexOf('loss') < 0) add(unresolved, 'Shto një trade që ka humbur.', 'No losing example provided.', 'examples');
+      if (kinds.indexOf('noentry') < 0) add(unresolved, 'Shto një rast kur NUK ke hyrë, edhe pse dukej si sinjal.', 'No "must not enter" example provided.', 'examples');
+      if (a.sides === 'both' && (kinds.indexOf('buy') < 0 || kinds.indexOf('sell') < 0)) add(unresolved, 'Shto shembuj për të dy drejtimet, BUY dhe SELL.', 'Examples do not cover both BUY and SELL.', 'examples');
+      exs.forEach(function (e, i) {
+        if ((e.kind === 'buy' || e.kind === 'sell') && !e.photoId && (isEmpty(e.entry) || isEmpty(e.sl) || isEmpty(e.tp))) add(unresolved, 'Shembulli ' + (i + 1) + ': shto çmimet (hyrja, Stop Loss, Take Profit) ose një foto të grafikut.', 'Example ' + (i + 1) + ': no prices and no chart photo.', 'examples');
+      });
       exs.forEach(function (e, i) {
         if (e.kind === 'buy' || e.kind === 'sell') {
           var en = parseNum(e.entry), sl = parseNum(e.sl), tp = parseNum(e.tp);
@@ -600,7 +663,7 @@
     if ((state.legacyNotes || []).length) add(assumptions, 'Disa shënime u morën nga një draft i vjetër dhe duhen rikontrolluar.', 'Some notes were migrated from an older draft and must be re-checked.');
 
     var errors = validate(state);
-    return { errors: errors, unresolved: unresolved, contradictions: contradictions, assumptions: assumptions, ready: errors.length === 0 && unresolved.length === 0 && contradictions.length === 0 };
+    return { errors: errors, unresolved: unresolved, contradictions: contradictions, assumptions: assumptions, devChecks: devChecks, ready: errors.length === 0 && unresolved.length === 0 && contradictions.length === 0 };
   }
 
   // ---------- Seksionet (për përmbledhjen, emailin dhe specifikimin) ----------
@@ -609,12 +672,12 @@
     var visSet = {};
     vis.forEach(function (id) { visSet[id] = true; });
     var out = [];
-    STEPS.forEach(function (st) {
-      if (st.id === 'done') return;
+    SECTIONS.forEach(function (st) {
+      if (st.id === 'review') return;
       var items = [];
       Q.forEach(function (q) {
         if (q.step !== st.id || !visSet[q.id]) return;
-        if (q.type === 'info' || q.type === 'facts' || q.type === 'examples') return;
+        if (NON_ANSWER[q.type]) return;
         var d = display(q, state, lang);
         if (!d) return;
         items.push({ id: q.id, label: (lang === 'sq' ? fill(q.sq, state) : fill(q.en, state)).replace(/:\s*$/, ''), value: d.text, unknown: !!d.unknown });
@@ -640,7 +703,7 @@
     });
   }
 
-  // Emra të qëndrueshëm për fotot e shembujve (të njëjtë në faqe, email dhe specifikim)
+  // Emra të qëndrueshëm për fotot (të njëjtë në faqe, panel, specifikim dhe ZIP)
   function photoNames(state) {
     var names = {};
     (state.examples || []).forEach(function (ex, i) {
@@ -648,7 +711,17 @@
       var tag = ex.kind === 'noentry' ? 'no-entry' : (ex.kind || 'shembull') + (ex.result ? '-' + ex.result : '');
       names[ex.photoId] = 'shembulli-' + (i + 1) + '-' + tag + '.jpg';
     });
+    (state.settingsPhotos || []).forEach(function (p, i) {
+      if (p && p.photoId) names[p.photoId] = 'cilesimet-' + (i + 1) + '.jpg';
+    });
     return names;
+  }
+  function settingsLines(state, lang, names) {
+    names = names || photoNames(state);
+    return (state.settingsPhotos || []).filter(function (p) { return p && p.photoId; }).map(function (p) {
+      var note = p.note && String(p.note).trim() ? String(p.note).trim() : (lang === 'sq' ? 'pa përshkrim' : 'no description');
+      return (names[p.photoId] || '') + ': ' + note;
+    });
   }
 
   // ---------- Madhësia e trade-it (për programuesin) ----------
@@ -691,6 +764,8 @@
     if (vis.news && a.news === 'yes') r.push('News filter is part of the strategy: backtest with historical news data (e.g. a stored calendar file). The MQL5 Economic Calendar is not available in the Strategy Tester. Any backtest with the news filter disabled must be labelled as a test with modified rules.');
     if (vis.spread_filter && a.spread_filter === 'dev') r.push('Choose a max spread value for XAUUSD.r from measured spreads and document it as an input.');
     if (Array.isArray(a.cond) && a.cond.indexOf('custom') >= 0) r.push('Custom TradingView indicator must be re-implemented in MQL5 from its code/formulas and validated bar-by-bar against TradingView before use.');
+    r.push('Photos (examples and indicator settings) are for checking the written rules only. Do NOT infer or invent parameters from photos; if a photo seems to disagree with an answer, ask the client.');
+    analyze(state).devChecks.forEach(function (x) { r.push('VERIFY: ' + x.en); });
     r.push('Do not start coding while unresolved issues or contradictions exist. Send questions back to the client.');
     return r;
   }
@@ -718,6 +793,8 @@
     });
     var exl = exampleLines(state, 'en', meta.photoNames || photoNames(state));
     if (exl.length) { L.push(''); L.push('-- Examples --'); exl.forEach(function (x) { L.push('- ' + x); }); }
+    var spl = settingsLines(state, 'en', meta.photoNames || photoNames(state));
+    if (spl.length) { L.push(''); L.push('-- Indicator settings photos --'); spl.forEach(function (x) { L.push('- ' + x); }); }
     L.push('');
     L.push('== 2. PREVIOUSLY CONFIRMED FACTS ==');
     CONFIRMED_FACTS.forEach(function (f) { L.push('- ' + f.en); });
@@ -730,7 +807,7 @@
       state.legacyNotes.forEach(function (n) { L.push('  * ' + n.en + ': ' + n.text); });
     }
     L.push('');
-    L.push('== 4. UNRESOLVED ISSUES AND CONTRADICTIONS ==');
+    L.push('== 4. TO CLARIFY WITH THE CLIENT (unresolved issues and contradictions) ==');
     var any = false;
     an.errors.forEach(function (e) { any = true; var q = byId[e.id]; L.push('- MISSING: ' + (q ? q.en : e.id) + ' (' + e.msg + ')'); });
     an.unresolved.forEach(function (x) { any = true; L.push('- UNRESOLVED: ' + x.en); });
@@ -834,20 +911,21 @@
   function migrateState(d) {
     if (!d || typeof d !== 'object') return null;
     if (d.schemaVersion === SCHEMA_VERSION) return d;
-    if ([2, 3].indexOf(d.schemaVersion) < 0) return null;
+    if ([2, 3, 4].indexOf(d.schemaVersion) < 0) return null;
     var A = Object.assign({}, d.answers || {});
     if (d.schemaVersion === 2) {
       ['day_reset', 't_tz', 'tv_tz'].forEach(function (k) { if (A[k] === 'kosovo') A[k] = 'albania'; });
       delete A.client_name; delete A.client_email;
     }
     // 3 -> 4: pyetjet e reja për madhësinë e trade-it mbeten bosh; klienti i plotëson vetë.
-    return Object.assign({}, d, { schemaVersion: SCHEMA_VERSION, answers: A });
+    // 4 -> 5: ekrane të reja dhe foto cilësimesh; përgjigjet mbeten të njëjtat (ID-të nuk ndryshuan).
+    return Object.assign({}, d, { schemaVersion: SCHEMA_VERSION, answers: A, settingsPhotos: Array.isArray(d.settingsPhotos) ? d.settingsPhotos : [] });
   }
 
   function emptyState() {
     var A = {};
     Q.forEach(function (q) { if (q.def !== undefined) A[q.id] = q.def; });
-    return { schemaVersion: SCHEMA_VERSION, answers: A, examples: [], step: 0, legacyNotes: [], updatedAt: null };
+    return { schemaVersion: SCHEMA_VERSION, answers: A, examples: [], settingsPhotos: [], screen: null, legacyNotes: [], updatedAt: null };
   }
 
   // Pastron gjendjen që vjen nga jashtë (p.sh. në server): vetëm çelësa të njohur, tipe të sakta.
@@ -857,7 +935,7 @@
     var A = input.answers && typeof input.answers === 'object' ? input.answers : {};
     s.answers = {};
     Q.forEach(function (q) {
-      if (q.type === 'info' || q.type === 'facts' || q.type === 'examples') return;
+      if (NON_ANSWER[q.type]) return;
       var v = A[q.id];
       if (q.type === 'multi') { if (Array.isArray(v)) s.answers[q.id] = v.filter(function (x) { return typeof x === 'string' && (x === UNKNOWN || (q.options || []).some(function (op) { return op.v === x; })); }).slice(0, 20); }
       else if (q.type === 'single') { if (typeof v === 'string' && (v === UNKNOWN || (q.options || []).some(function (op) { return op.v === v; }))) s.answers[q.id] = v; }
@@ -873,6 +951,9 @@
       });
       return e;
     });
+    s.settingsPhotos = (Array.isArray(input.settingsPhotos) ? input.settingsPhotos : []).slice(0, MAX_SETTINGS_PHOTOS).map(function (p) {
+      return { photoId: p && typeof p.photoId === 'string' ? p.photoId : null, note: p && (typeof p.note === 'string') ? p.note : '' };
+    });
     s.legacyNotes = (Array.isArray(input.legacyNotes) ? input.legacyNotes : []).slice(0, 40).map(function (n) {
       return { sq: String(n && n.sq || ''), en: String(n && n.en || ''), text: String(n && n.text || '') };
     });
@@ -884,14 +965,14 @@
     var errs = [];
     function bad(field, msg) { errs.push({ id: field, msg: msg }); }
     if (!input || typeof input !== 'object' || Array.isArray(input)) { bad('state', 'Mungojnë të dhënat.'); return errs; }
-    Object.keys(input).forEach(function (k) { if (['answers', 'examples', 'legacyNotes'].indexOf(k) < 0) bad(k, 'Fushë e panjohur.'); });
+    Object.keys(input).forEach(function (k) { if (['answers', 'examples', 'settingsPhotos', 'legacyNotes'].indexOf(k) < 0) bad(k, 'Fushë e panjohur.'); });
     var A = input.answers;
     if (!A || typeof A !== 'object' || Array.isArray(A)) { bad('answers', 'Mungojnë përgjigjet.'); return errs; }
     Object.keys(A).forEach(function (k) {
       var unk = k.charAt(0) === '?';
       var q = byId[unk ? k.slice(1) : k];
       var v = A[k];
-      if (!q || q.type === 'info' || q.type === 'facts' || q.type === 'examples') return bad(k, 'Pyetje e panjohur.');
+      if (!q || NON_ANSWER[q.type]) return bad(k, 'Pyetje e panjohur.');
       if (unk) { if (v !== true || !q.unk || q.type === 'single' || q.type === 'multi') bad(k, 'Vlerë e pavlefshme.'); return; }
       if (q.type === 'single') { if (typeof v !== 'string' || !(v === UNKNOWN ? q.unk : q.options.some(function (op) { return op.v === v; }))) bad(k, 'Opsion i pavlefshëm.'); return; }
       if (q.type === 'multi') {
@@ -917,6 +998,16 @@
         if (le) bad('ex:' + i + ':' + k, le);
       });
     });
+    var SP = input.settingsPhotos;
+    if (SP !== undefined && (!Array.isArray(SP) || SP.length > MAX_SETTINGS_PHOTOS)) bad('settingsPhotos', 'Format i pavlefshëm.');
+    (Array.isArray(SP) ? SP : []).forEach(function (p, i) {
+      if (!p || typeof p !== 'object' || Array.isArray(p)) return bad('sp:' + i, 'Format i pavlefshëm.');
+      Object.keys(p).forEach(function (k) {
+        if (k === 'photoId') { if (p.photoId !== null && (typeof p.photoId !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(p.photoId))) bad('sp:' + i, 'Identifikues i pavlefshëm.'); }
+        else if (k === 'note') { if (typeof p.note !== 'string') bad('sp:' + i, 'Vlerë e pavlefshme.'); else { var le = lengthError(p.note.length, MAX_LEN_EX.text); if (le) bad('sp:' + i, le); } }
+        else bad('sp:' + i + ':' + k, 'Fushë e panjohur.');
+      });
+    });
     var N = input.legacyNotes;
     if (N !== undefined && (!Array.isArray(N) || N.some(function (n) { return !n || typeof n.sq !== 'string' || typeof n.en !== 'string' || typeof n.text !== 'string' || n.text.length > 20000; }))) bad('legacyNotes', 'Format i pavlefshëm.');
     return errs;
@@ -925,7 +1016,8 @@
   return {
     SCHEMA_VERSION: SCHEMA_VERSION, STORAGE_KEY: STORAGE_KEY, BACKUP_KEY: BACKUP_KEY, UNKNOWN: UNKNOWN,
     MAX_EXAMPLES: MAX_EXAMPLES, MIN_EXAMPLES: MIN_EXAMPLES, MAX_PHOTOS: MAX_PHOTOS,
-    CONFIRMED_FACTS: CONFIRMED_FACTS, STEPS: STEPS, QUESTIONS: Q, EXAMPLE_FIELDS: EX, UNITS: UNITS, byId: byId,
+    CONFIRMED_FACTS: CONFIRMED_FACTS, STEPS: STEPS, SECTIONS: SECTIONS, SCREENS: SCREENS, QUESTIONS: Q, EXAMPLE_FIELDS: EX, UNITS: UNITS, byId: byId,
+    UNKNOWN_SQ: UNKNOWN_SQ, MAX_SETTINGS_PHOTOS: MAX_SETTINGS_PHOTOS, settingsLines: settingsLines, NON_ANSWER: NON_ANSWER,
     isVisible: function (id, state) { return isVisible(id, state, {}); }, visibleIds: visibleIds, exVisible: exVisible,
     isUnknown: isUnknownVal, parseNum: parseNum, fill: fill, side: side, unitLabel: unitLabel, currency: currency,
     validate: validate, analyze: analyze, sections: sections, exampleLines: exampleLines, buildSpec: buildSpec,

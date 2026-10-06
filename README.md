@@ -6,6 +6,20 @@ Pyetësor për telefon që mbledh rregullat e strategjisë së klientit për rob
 
 Klienti nuk ka nevojë për llogari, nuk jep emër as email, dhe nuk ka nevojë të të dërgojë asgjë vetë.
 
+## Pyetësori
+
+Shtatë pjesë me gjuhë të thjeshtë, secila me ekrane të vegjël:
+
+1. Çfarë tregton?
+2. Kur hap një trade? (cilësimet e çdo indikatori në ekranin e vet, vetëm nëse zgjidhet)
+3. Kur e mbyll?
+4. Sa do të rrezikosh? (lot fiks, përqindje e llogarisë ose shumë fikse, pa vlerë të parazgjedhur)
+5. Në cilat orare tregton?
+6. Na trego disa shembuj. (të paktën një; foto grafiku dhe foto cilësimesh me përshkrim)
+7. Kontrollo përgjigjet. (përmbledhje me "Ndrysho" për çdo pjesë dhe listën "Këto do t'i sqarojmë bashkë")
+
+Termat e platformës (BUY, SELL, Stop Loss, Take Profit, lot) mbeten dhe shpjegohen herën e parë. Pyetjet teknike kanë **"Nuk e di — ta sqarojmë bashkë"**: lejon dorëzimin, ruhet si e pasqaruar, del në panel dhe në eksport, dhe nuk zëvendësohet me vlerë. Disa detaje (p.sh. monedha e llogarisë) shkojnë te lista e verifikimit për zhvilluesin. "U dorëzua me sukses" dhe "Specifikimi është gati për zhvillim" janë dy statuse të ndara: një dorëzim me paqartësi nuk shënohet gati.
+
 ## Si funksionon
 
 1. **Dorëzimi** (`POST /api/submit`):
@@ -101,7 +115,7 @@ Me `NOTIFY_EMAIL_TO` (dhe Resend ose SMTP, shih `.env.example`), merr një email
 - Pas 5 fjalëkalimeve të gabuara nga e njëjta IP, hyrja bllokohet për 15 minuta. Ky numërim, si edhe kufizimi i dorëzimeve (8 në 10 minuta për IP), mbahet në memorien e funksionit, prandaj është "best effort". Mbrojtja kryesore është fjalëkalimi i gjatë.
 - Paneli nuk ka ende fshirje të dorëzimeve. Ato fshihen nga Vercel → Storage → Blob.
 - Dy klikime njëkohësisht me të njëjtin çelës bllokohen brenda të njëjtës instancë të serverit. Në rastin shumë të rrallë kur dy instanca e marrin të njëjtin dorëzim në të njëjtin moment, përmbajtja është e njëjtë, por ID-ja mund të ndryshojë mes tyre. Gjithsesi del vetëm një dorëzim në panel.
-- Kufijtë: deri në 6 foto (secila ≤ 700 KB pas kompresimit në telefon), kërkesa ≤ 4 MB, tekstet ≤ 2,000 shenja (fushat e gjata ≤ 20,000).
+- Kufijtë: deri në 8 foto (6 shembuj + 2 cilësime; telefoni i kompreson në ≤ 320 KB secilën), kërkesa ≤ 4 MB, tekstet ≤ 2,000 shenja (fushat e gjata ≤ 20,000).
 
 ## Drafti i vjetër
 

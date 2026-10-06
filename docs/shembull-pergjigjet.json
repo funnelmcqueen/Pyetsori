@@ -1,7 +1,7 @@
 {
   "format": "xauusd-pyetesori",
-  "schemaVersion": 4,
-  "id": "XAU-20261005-5PRV2S",
+  "schemaVersion": 5,
+  "id": "XAU-20261005-LK296C",
   "submissionKey": "00000000-0000-4000-8000-000000000000",
   "submittedAt": "2026-10-05T10:00:00.000Z",
   "mode": "test",
@@ -14,13 +14,29 @@
       "type": "image/jpeg",
       "bytes": 22,
       "sha256": "d20f6ffd523b78a86cd2f916fa34af5d1918d75f7b142237c752ad6b254213ab",
-      "exampleIndex": 1
+      "role": "example",
+      "exampleIndex": 1,
+      "note": "Hyrja pas kryqëzimit"
+    },
+    {
+      "photoId": "sp1",
+      "filename": "cilesimet-1.jpg",
+      "type": "image/jpeg",
+      "bytes": 22,
+      "sha256": "d20f6ffd523b78a86cd2f916fa34af5d1918d75f7b142237c752ad6b254213ab",
+      "role": "indicator-settings",
+      "settingsIndex": 1,
+      "note": "RSI në M15"
     }
   ],
+  "analysis": {
+    "readyForDevelopment": true,
+    "missingRequired": [],
+    "clarifyWithClient": [],
+    "developerChecks": []
+  },
   "state": {
     "answers": {
-      "risk_pct": "1",
-      "max_trades": "3",
       "facts_review": "ok",
       "tf_signal": "M15",
       "tf_higher": "H1",
@@ -64,7 +80,9 @@
       "size_method": "risk_pct",
       "lot_cap": "no",
       "size_conflict": "skip",
+      "risk_pct": "1",
       "risk_base": "balance",
+      "max_trades": "3",
       "max_open": "1",
       "after_win": "continue",
       "loss_stop": "none",
@@ -121,7 +139,8 @@
         "sl": "2645.4",
         "tp": "2660.4",
         "why": "Kryqëzim dhe RSI mbi 50",
-        "photoId": "p1"
+        "photoId": "p1",
+        "photoNote": "Hyrja pas kryqëzimit"
       },
       {
         "kind": "sell",
@@ -143,6 +162,12 @@
         "photoId": null
       }
     ],
-    "legacyNotes": []
+    "legacyNotes": [],
+    "settingsPhotos": [
+      {
+        "photoId": "sp1",
+        "note": "RSI në M15"
+      }
+    ]
   }
 }

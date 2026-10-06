@@ -118,7 +118,7 @@
   function badges(s) {
     var b = el('div', { cls: 'badges' });
     b.appendChild(el('span', { cls: 'badge ' + (s.mode === 'test' ? 'test' : 'real'), text: s.mode === 'test' ? 'Provë' : 'Dorëzim real' }));
-    b.appendChild(el('span', { cls: 'badge ' + (s.ready ? 'yes' : 'no'), text: s.ready ? 'Gati për programim' : 'Jo gati: ' + s.openItems + (s.openItems === 1 ? ' çështje' : ' çështje') }));
+    b.appendChild(el('span', { cls: 'badge ' + (s.ready ? 'yes' : 'no'), text: s.ready ? 'Gati për zhvillim' : 'Jo gati: ' + s.openItems + ' për t\'u sqaruar' }));
     b.appendChild(el('span', { cls: 'badge', text: 'Foto: ' + s.photoCount }));
     return b;
   }
@@ -182,12 +182,14 @@
         box.appendChild(stEl);
 
         var an = Q.analyze(state);
-        var issues = an.errors.map(function (e) { return 'Mungon: ' + (Q.byId[e.id] ? Q.fill(Q.byId[e.id].sq, state) : e.id); })
-          .concat(an.unresolved.map(function (x) { return x.sq; }))
-          .concat(an.contradictions.map(function (x) { return x.sq; }));
-        box.appendChild(el('h2', { text: 'Çështje që presin sqarim' }));
-        if (issues.length) { var ul = el('ul', { cls: 'issues' }); issues.forEach(function (t) { ul.appendChild(el('li', { text: t })); }); box.appendChild(ul); }
-        else box.appendChild(el('p', { text: 'Asnjë.' }));
+        function list(title, items) {
+          box.appendChild(el('h2', { text: title }));
+          if (items.length) { var ul = el('ul', { cls: 'issues' }); items.forEach(function (t) { ul.appendChild(el('li', { text: t })); }); box.appendChild(ul); }
+          else box.appendChild(el('p', { text: 'Asnjë.' }));
+        }
+        list('Për t\'u sqaruar me klientin', an.unresolved.concat(an.contradictions).map(function (x) { return x.sq; }));
+        if (an.errors.length) list('Mungojnë (pyetje të detyrueshme)', an.errors.map(function (e) { return Q.byId[e.id] ? Q.fill(Q.byId[e.id].sq, state) : e.msg; }));
+        list('Për zhvilluesin (verifikim në llogari)', an.devChecks.map(function (x) { return x.sq; }).concat(['Specifikimet e XAUUSD.r te Tauro: madhësia e kontratës, vlera e tick-ut, lot-i minimal dhe hapi, stops level, komisioni, spread-i, hedging/netting, ora e serverit.']));
 
         Q.sections(state, 'sq').forEach(function (sec) {
           box.appendChild(el('h2', { text: sec.title }));
@@ -213,6 +215,23 @@
           exs.appendChild(card);
         });
         box.appendChild(exs);
+
+        var sps = (state.settingsPhotos || []).filter(function (p) { return p && p.photoId && names[p.photoId]; });
+        if (sps.length) {
+          box.appendChild(el('h2', { text: 'Foto të cilësimeve të indikatorëve' }));
+          var spBox = el('div', { cls: 'examples' });
+          sps.forEach(function (p) {
+            var card = el('div', { cls: 'ex' }, [el('p', { text: names[p.photoId] + ': ' + (p.note || 'pa përshkrim') })]);
+            var img = el('img', { alt: names[p.photoId] });
+            card.appendChild(img);
+            api({ action: 'photo', key: m.submissionKey, name: names[p.photoId] }).then(function (r) {
+              if (!r.ok) { img.replaceWith(el('p', { cls: 'msg err', text: 'Fotoja mungon në ruajtje: ' + names[p.photoId] })); return; }
+              return r.blob().then(function (b) { var u = URL.createObjectURL(b); photoUrls.push(u); img.src = u; });
+            });
+            spBox.appendChild(card);
+          });
+          box.appendChild(spBox);
+        }
 
         if ((state.legacyNotes || []).length) {
           box.appendChild(el('h2', { text: 'Nga drafti i vjetër' }));

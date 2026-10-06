@@ -37,7 +37,8 @@ test('pyetjet e kushtëzuara shfaqen dhe fshihen sipas zgjedhjeve', function () 
   s.answers.sides = 'buy_only';
   assert.ok(!Q.isVisible('mirror', s));
   s.answers.sides = 'sell_only';
-  assert.equal(Q.fill(Q.STEPS[2].sq, s), 'Entry signal për SELL');
+  var condScreen = Q.SCREENS.filter(function (x) { return x.id === 'conditions'; })[0];
+  assert.match(Q.fill(condScreen.intro, s), /trade SELL/);
 });
 
 test('"Nuk e di" lejon dorëzimin, por e bën specifikimin jo-gati', function () {
@@ -63,11 +64,16 @@ test('fushat e detyrueshme dhe formatet e gabuara bllokojnë', function () {
   var ids = Q.validate(s).map(function (e) { return e.id; });
   ['facts_review', 'sl_fixed', 't_to'].forEach(function (id) { assert.ok(ids.indexOf(id) >= 0, id); });
   s = H.fullState();
-  s.examples = s.examples.slice(0, 2);
-  assert.ok(Q.validate(s).some(function (e) { return e.id === 'examples'; }));
+  s.examples = [];
+  assert.ok(Q.validate(s).some(function (e) { return e.id === 'examples'; }), 'duhet të paktën një shembull');
   s = H.fullState();
-  s.examples[0].entry = '';
-  assert.ok(Q.validate(s).some(function (e) { return e.id === 'ex:0:entry'; }));
+  s.examples = s.examples.slice(0, 1);
+  assert.deepEqual(Q.validate(s), [], 'një shembull mjafton për dorëzim');
+  s.examples[0].why = '';
+  assert.ok(Q.validate(s).some(function (e) { return e.id === 'ex:0:why'; }));
+  s = H.fullState();
+  s.examples[0].entry = ''; s.examples[0].time = ''; delete s.examples[0].tf;
+  assert.deepEqual(Q.validate(s), [], 'çmimet, ora dhe timeframe janë opsionale te shembujt');
 });
 
 test('marrëdhëniet mes vlerave: kundërthënie dhe gabime', function () {
@@ -111,7 +117,8 @@ test('përgjigjet, përmbledhja dhe specifikimi përputhen', function () {
     assert.ok(sqIds.indexOf(id) >= 0, 'mungon ' + id);
   });
   // Seksionet e kërkuara të specifikimit
-  ['== 1. CLIENT ANSWERS ==', '== 2. PREVIOUSLY CONFIRMED FACTS ==', '== 3. ASSUMPTIONS PENDING CONFIRMATION ==', '== 4. UNRESOLVED ISSUES AND CONTRADICTIONS ==', '== 5. DEVELOPER VERIFICATIONS AND REQUIREMENTS =='].forEach(function (h) { assert.ok(spec.indexOf(h) >= 0, h); });
+  ['== 1. CLIENT ANSWERS ==', '== 2. PREVIOUSLY CONFIRMED FACTS ==', '== 3. ASSUMPTIONS PENDING CONFIRMATION ==', '== 4. TO CLARIFY WITH THE CLIENT (unresolved issues and contradictions) ==', '== 5. DEVELOPER VERIFICATIONS AND REQUIREMENTS =='].forEach(function (h) { assert.ok(spec.indexOf(h) >= 0, h); });
+  assert.match(spec, /Do NOT infer or invent parameters from photos/);
   assert.match(spec, /round DOWN to the volume step/);
   assert.match(spec, /below the broker minimum, skip the trade/);
   assert.match(spec, /Restore state after restart/);
@@ -180,11 +187,29 @@ test('drafti me skemën 2 migrohet: ora e Shqipërisë dhe pa të dhëna persona
   assert.equal(Q.migrateState({ schemaVersion: 1 }), null);
 });
 
-test('termat e trading-ut janë në anglisht', function () {
-  var txt = JSON.stringify(Q.QUESTIONS) + JSON.stringify(Q.STEPS) + JSON.stringify(Q.EXAMPLE_FIELDS) + JSON.stringify(Q.CONFIRMED_FACTS);
-  ['qiri', 'qirinj', 'majë', 'gropë', 'gropa', 'mesatare lëvizëse', 'kryqëzim', 'urdhri në pritje', 'tregti', 'Kosov'].forEach(function (w) {
-    assert.ok(txt.toLowerCase().indexOf(w.toLowerCase()) < 0, 'gjendet ende: ' + w);
+test('gjuha e thjeshtë: termat e platformës mbeten, "Nuk e di" i qartë, pa risk të parazgjedhur', function () {
+  // Vetëm tekstet që sheh klienti (shqip), jo etiketat në anglisht për zhvilluesin
+  var parts = [];
+  Q.QUESTIONS.concat(Q.EXAMPLE_FIELDS).forEach(function (q) { parts.push(q.sq, q.hint || '', q.ex || '', q.text || ''); (q.options || []).forEach(function (op) { parts.push(op.sq); }); });
+  Q.SCREENS.forEach(function (x) { parts.push(x.sq, x.intro || ''); });
+  Q.CONFIRMED_FACTS.forEach(function (f) { parts.push(f.sq); });
+  var txt = parts.join('\n');
+  ['qiri', 'Kosov', 'Entry signal', 'Partial close', 'Break-even'].forEach(function (w) { assert.ok(txt.indexOf(w) < 0, 'gjendet ende: ' + w); });
+  ['BUY', 'SELL', 'Stop Loss', 'Take Profit', 'lot'].forEach(function (w) { assert.ok(txt.indexOf(w) >= 0, 'mungon termi i platformës: ' + w); });
+  assert.equal(Q.UNKNOWN_SQ, 'Nuk e di — ta sqarojmë bashkë');
+  assert.equal(Q.byId.mg_partial.sq, 'A mbyll një pjesë të trade-it përpara se të arrijë Take Profit?');
+  assert.equal(Q.byId.mg_be.sq, 'A e zhvendos Stop Loss te çmimi ku hape trade-in?');
+  assert.equal(Q.byId.cond.sq, 'Çfarë duhet të ndodhë që të hapësh një trade?');
+  assert.deepEqual(Q.QUESTIONS.filter(function (q) { return q.def !== undefined; }).map(function (q) { return q.id; }), [], 'asnjë vlerë e parazgjedhur');
+  assert.equal(Q.emptyState().answers.risk_pct, undefined);
+  assert.deepEqual(Q.SECTIONS.map(function (x) { return x.sq; }), ['Çfarë tregton?', 'Kur hap një trade?', 'Kur e mbyll?', 'Sa do të rrezikosh?', 'Në cilat orare tregton?', 'Na trego disa shembuj.', 'Kontrollo përgjigjet.']);
+  // "Nuk e përdor" dallohet nga "Nuk e di"
+  ['mg_be', 'mg_partial', 'mg_trail', 'daily_loss', 'news'].forEach(function (id) {
+    var vals = Q.byId[id].options.map(function (op) { return op.v; });
+    assert.ok(vals.indexOf('no') >= 0 && Q.byId[id].unk, id);
   });
+  // Shembujt janë tekst, nuk plotësojnë fusha
+  Q.QUESTIONS.forEach(function (q) { assert.equal(q.ph, undefined, 'placeholder te ' + q.id); });
 });
 
 test('madhësia e trade-it: fushat sipas mënyrës së zgjedhur', function () {
@@ -267,4 +292,65 @@ test('çdo "Tjetër" ka fushë sqarimi të detyrueshme që shfaqet vetëm kur zg
   s.answers.cx_type = 'ema';
   assert.ok(!Q.isVisible('cx_type_other', s));
   assert.ok(!/Crossover MA type \(other\)/.test(Q.buildSpec(s)), 'sqarimi i fshehur nuk hyn në specifikim');
+});
+
+test('"Nuk e di": lejon dorëzimin, mbetet e pasqaruar, del në eksport, nuk zëvendësohet me vlerë', function () {
+  var s = H.fullState();
+  s.answers.sl_method = Q.UNKNOWN;
+  s.answers['?capital'] = true; delete s.answers.capital;
+  s.answers.account_ccy = Q.UNKNOWN;
+  assert.deepEqual(Q.validate(s), []);
+  var an = Q.analyze(s);
+  assert.equal(an.ready, false, 'me paqartësi nuk është gati');
+  assert.ok(an.unresolved.some(function (u) { return u.id === 'sl_method'; }), 'strategjia: sqarohet me klientin');
+  assert.ok(an.unresolved.some(function (u) { return u.id === 'capital'; }), 'risku: sqarohet me klientin');
+  assert.ok(!an.unresolved.some(function (u) { return u.id === 'account_ccy'; }));
+  assert.ok(an.devChecks.some(function (u) { return u.id === 'account_ccy'; }), 'monedha: e verifikon zhvilluesi');
+  var spec = Q.buildSpec(s);
+  assert.match(spec, /- Stop loss placement: UNKNOWN — to clarify with the client/);
+  assert.match(spec, /UNRESOLVED: Stop loss placement/);
+  assert.match(spec, /VERIFY: Account currency: unknown to the client, developer to verify/);
+  assert.equal(s.answers.sl_method, Q.UNKNOWN, 'vlera nuk zëvendësohet');
+  var sq = Q.sections(s, 'sq');
+  var all = []; sq.forEach(function (x) { all = all.concat(x.items); });
+  assert.ok(all.some(function (it) { return it.id === 'sl_method' && it.value === 'Nuk e di — ta sqarojmë bashkë' && it.unknown; }));
+});
+
+test('shembujt: një mjafton për dorëzim; mungesat shënohen për shqyrtim', function () {
+  var s = H.fullState();
+  s.examples = [{ kind: 'buy', result: 'win', date: '2026-09-03', why: 'Kryqëzim' }];
+  assert.deepEqual(Q.validate(s), []);
+  var an = Q.analyze(s);
+  var texts = an.unresolved.map(function (u) { return u.sq; }).join('\n');
+  assert.match(texts, /Shto një trade që ka humbur/);
+  assert.match(texts, /Shto një rast kur NUK ke hyrë/);
+  assert.match(texts, /Shembulli 1: shto çmimet/);
+  assert.equal(an.ready, false);
+});
+
+test('fotot e cilësimeve: emra të qëndrueshëm, në specifikim dhe me përshkrim', function () {
+  var s = H.fullState();
+  s.settingsPhotos = [{ photoId: 'sp1', note: 'RSI në M15' }];
+  s.examples[0].photoNote = 'Hyrja pas kryqëzimit';
+  var names = Q.photoNames(s);
+  assert.equal(names.sp1, 'cilesimet-1.jpg');
+  assert.equal(names.p1, 'shembulli-1-buy-win.jpg');
+  var spec = Q.buildSpec(s);
+  assert.match(spec, /-- Indicator settings photos --\n- cilesimet-1\.jpg: RSI në M15/);
+  assert.match(spec, /Photo description: Hyrja pas kryqëzimit/);
+  assert.deepEqual(Q.strictCheck({ answers: s.answers, examples: s.examples, settingsPhotos: s.settingsPhotos, legacyNotes: [] }), []);
+  assert.ok(Q.strictCheck({ answers: s.answers, settingsPhotos: [{ photoId: 'x', hack: 1 }] }).length > 0);
+});
+
+test('drafti dhe dorëzimet e vjetra (skema 4) lexohen pa humbje', function () {
+  var old = H.fullState();
+  old.schemaVersion = 4; old.step = 5; delete old.settingsPhotos;
+  var m = Q.migrateState(JSON.parse(JSON.stringify(old)));
+  assert.equal(m.schemaVersion, Q.SCHEMA_VERSION);
+  assert.deepEqual(m.answers, old.answers, 'përgjigjet mbeten identike');
+  assert.deepEqual(m.settingsPhotos, []);
+  // Një dorëzim i ruajtur me skemën 4 jep të njëjtën përmbledhje
+  var v4state = { answers: old.answers, examples: old.examples, legacyNotes: [] };
+  assert.ok(Q.sections(v4state, 'sq').length >= 5);
+  assert.doesNotThrow(function () { Q.analyze(v4state); Q.buildSpec(v4state); });
 });

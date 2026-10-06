@@ -65,10 +65,10 @@ test('pa sesion shfaqet hyrja; pas hyrjes lista me datën, ID-në, fotot dhe sta
   assert.equal(cards.length, 2);
   assert.match(cards[0].textContent, /XAU-20261005-ABCDEF/);
   assert.match(cards[0].textContent, /Dorëzim real/);
-  assert.match(cards[0].textContent, /Gati për programim/);
+  assert.match(cards[0].textContent, /Gati për zhvillim/);
   assert.match(cards[0].textContent, /Foto: 1/);
   assert.match(cards[1].textContent, /Provë/);
-  assert.match(cards[1].textContent, /Jo gati: 3/);
+  assert.match(cards[1].textContent, /Jo gati: 3 për t'u sqaruar/);
   assert.match(p.d.getElementById('storage-line').textContent, /Vercel Private Blob/);
   p.calls.forEach(function (c) { assert.equal(c.init.headers['X-XAU-Admin'], '1'); assert.equal(c.init.credentials, 'same-origin'); });
   p.w.close();
@@ -105,11 +105,13 @@ test('eksporti shkarkon në pajisje me emrin nga serveri; ZIP i paplotë tregon 
 
 test('detajet e një dorëzimi shfaqen nga të dhënat e ruajtura, me foto përmes panelit', async function () {
   var state = H.fullState();
+  state.answers.account_ccy = '?';
+  state.answers.sl_method = '?';
   var photoCalls = 0;
   var p = loadAdmin(function (action, params) {
     if (action === 'status') return [200, { ok: true, storage: 'file' }];
     if (action === 'list') return [200, { ok: true, submissions: [SUB] }];
-    if (action === 'get') return [200, { ok: true, manifest: Object.assign({ submissionKey: SUB.key, photos: [] }, SUB), answers: { schemaVersion: 4, state: { answers: state.answers, examples: state.examples, legacyNotes: [] } }, spec: 'XAUUSD EA SPECIFICATION ...' }];
+    if (action === 'get') return [200, { ok: true, manifest: Object.assign({ submissionKey: SUB.key, photos: [] }, SUB), answers: { schemaVersion: 5, state: { answers: state.answers, examples: state.examples, settingsPhotos: [{ photoId: 'sp1', note: 'RSI në M15' }], legacyNotes: [] } }, spec: 'XAUUSD EA SPECIFICATION ...' }];
     if (action === 'photo') { photoCalls++; return [200, new Uint8Array([0xff, 0xd8, 0xff])]; }
     return [404, {}];
   });
@@ -119,10 +121,15 @@ test('detajet e një dorëzimi shfaqen nga të dhënat e ruajtura, me foto përm
   assert.equal(p.d.getElementById('view-detail').hidden, false);
   var t = p.d.getElementById('detail').textContent;
   assert.match(t, /XAU-20261005-ABCDEF/);
-  assert.match(t, /Entry signal për BUY/);
+  assert.match(t, /Kur hap një trade\?/);
   assert.match(t, /RSI kalon mbi 50/);
   assert.match(t, /XAUUSD EA SPECIFICATION/);
-  assert.equal(photoCalls, 1);
+  assert.match(t, /Për t'u sqaruar me klientin/);
+  assert.match(t, /Ku e vendos Stop Loss/);
+  assert.match(t, /Për zhvilluesin/);
+  assert.match(t, /Në cilën monedhë është llogaria: do ta verifikojë zhvilluesi/);
+  assert.match(t, /cilesimet-1\.jpg: RSI në M15/);
+  assert.equal(photoCalls, 2, 'foto e shembullit dhe foto e cilësimeve');
   assert.ok(p.d.querySelector('#detail img').getAttribute('src').indexOf('blob:') === 0);
   p.w.close();
 });
