@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pyetësori i strategjisë: roboti XAUUSD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EDF0F3; --surface:#FFFFFF; --ink:#18202B; --muted:#5A6573;
+  --line:#CDD4DC; --gold:#9C7318; --gold-soft:#F3E7C9; --focus:#2E5BBA;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#121821; --surface:#1A222D; --ink:#E5E9EF; --muted:#9AA5B3;
+    --line:#2D3846; --gold:#D6AA4C; --gold-soft:#2C2616; --focus:#7FA4F0;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121821; --surface:#1A222D; --ink:#E5E9EF; --muted:#9AA5B3;
+  --line:#2D3846; --gold:#D6AA4C; --gold-soft:#2C2616; --focus:#7FA4F0;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Archivo",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:640px;margin:0 auto;padding:0 20px 130px}
+
+header{padding:32px 0 18px;border-bottom:2px solid var(--ink)}
+.ticker{
+  display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;
+  font-stretch:125%;font-weight:800;line-height:.95;color:var(--gold);
+  font-size:clamp(2.2rem,10vw,3.4rem);
+}
+.ticker small{font-size:.95rem;font-weight:500;font-stretch:100%;color:var(--muted)}
+.stepline{margin:14px 0 0;color:var(--muted);font-size:.92rem}
+
+.step{display:none;padding:26px 0 0}
+.step.on{display:block}
+.step h2{display:flex;gap:12px;align-items:baseline;font-size:1.35rem;font-weight:700;margin:0 0 6px;line-height:1.25}
+.step h2 span{font-stretch:62%;font-weight:800;font-size:1.8rem;color:var(--gold);min-width:1.3ch}
+.intro{color:var(--muted);margin:0 0 22px;font-size:.95rem;max-width:56ch}
+
+.q{border:0;margin:0 0 26px;padding:0;min-width:0}
+.q > label,.q > legend{display:block;font-weight:600;margin-bottom:10px;padding:0}
+.hint{display:block;font-weight:400;color:var(--muted);font-size:.88rem;margin-top:2px}
+.opt-tag{font-weight:400;color:var(--muted);font-size:.85rem}
+
+input[type=text],textarea{
+  width:100%;font:inherit;color:var(--ink);background:var(--surface);
+  border:1px solid var(--line);border-radius:6px;padding:11px 12px;
+}
+textarea{min-height:110px;resize:vertical}
+input:focus-visible,textarea:focus-visible,button:focus-visible,.chips input:focus-visible + span{
+  outline:2px solid var(--focus);outline-offset:2px;
+}
+.detail{margin-top:10px}
+[hidden]{display:none !important}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips label{position:relative;cursor:pointer}
+.chips input{position:absolute;opacity:0;width:1px;height:1px}
+.chips span{
+  display:inline-block;padding:10px 15px;border:1px solid var(--line);border-radius:999px;
+  background:var(--surface);font-size:.95rem;user-select:none;
+}
+.chips input:checked + span{border-color:var(--gold);background:var(--gold-soft);font-weight:600}
+
+.check{display:flex;gap:10px;align-items:flex-start;cursor:pointer;margin:12px 0 0}
+.check input{width:20px;height:20px;accent-color:var(--gold);margin:2px 0 0;flex:none}
+
+.steppers{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:520px){.steppers{grid-template-columns:1fr}}
+.stepper{display:flex;align-items:center;border:1px solid var(--line);border-radius:6px;background:var(--surface);overflow:hidden}
+.stepper button{border:0;background:transparent;color:var(--ink);font:inherit;font-size:1.3rem;font-weight:600;width:48px;height:48px;cursor:pointer}
+.stepper output{flex:1;text-align:center;font-weight:700;font-size:1.15rem;font-stretch:110%}
+
+details.more{border-top:1px solid var(--line);padding-top:16px;margin-top:8px}
+details.more summary{cursor:pointer;font-weight:600;margin-bottom:16px}
+
+.ticket{background:var(--surface);border:2px solid var(--ink);border-radius:4px;padding:16px}
+.ticket textarea{
+  min-height:280px;border:0;padding:0;background:transparent;
+  font-size:.84rem;line-height:1.45;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+.actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:16px}
+button.main,button.ghost{
+  font:inherit;font-weight:700;cursor:pointer;border-radius:6px;padding:12px 18px;
+  border:2px solid var(--ink);
+}
+button.main{background:var(--ink);color:var(--bg)}
+button.ghost{background:transparent;color:var(--ink)}
+#status{color:var(--muted);font-size:.92rem}
+.note{color:var(--muted);font-size:.9rem;margin-top:18px}
+.missing{color:var(--gold);font-weight:600;margin:0 0 14px}
+
+.bar{
+  position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--surface);
+  border-top:1px solid var(--line);
+  padding:10px 20px calc(10px + env(safe-area-inset-bottom,0px));
+}
+.bar-in{max-width:640px;margin:0 auto}
+.meter{height:5px;background:var(--line);border-radius:3px;overflow:hidden;margin-bottom:10px}
+.meter i{display:block;height:100%;width:0;background:var(--gold);transition:width .25s}
+@media (prefers-reduced-motion:reduce){.meter i{transition:none}}
+.nav{display:flex;gap:10px}
+.nav button{flex:1;padding:12px}
+.offscreen{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+.upl{display:inline-block;cursor:pointer;padding:10px 16px;border:1px dashed var(--gold);border-radius:6px;color:var(--gold);font-weight:600;background:var(--surface)}
+.thumbs{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.thumb{position:relative;width:96px;height:72px;border-radius:4px;overflow:hidden;border:1px solid var(--line)}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb button{position:absolute;top:3px;right:3px;width:24px;height:24px;border-radius:50%;border:0;background:var(--ink);color:var(--bg);font-size:14px;line-height:1;cursor:pointer}
+#status{color:var(--muted);font-size:.95rem;margin:16px 0 0}
+#inbox{padding:24px 0;border-bottom:2px solid var(--ink)}
+.ib-h{font-size:1.2rem;margin:0 0 6px}
+.sub{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:14px;margin:0 0 14px}
+.sub-top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;font-weight:600}
+.sub pre{white-space:pre-wrap;font-size:.8rem;line-height:1.45;max-height:260px;overflow:auto;margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.sub .thumbs img{width:140px;height:auto;border:1px solid var(--line);border-radius:4px}
+.sub button{padding:7px 12px;font-size:.88rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="ticker">XAUUSD <small>Strategjia për robotin</small></div>
+  <p class="stepline" id="stepline"></p>
+</header>
+
+<section id="inbox" hidden>
+  <h2 class="ib-h">Përgjigjet e marra</h2>
+  <p class="intro">Vetëm ti e sheh këtë pjesë. Kopjoje specifikimin dhe ngjite në Claude Code bashkë me fotot.</p>
+  <div id="inbox-list"></div>
+  <button type="button" class="ghost" id="inbox-refresh">Rifresko</button>
+</section>
+
+<form id="f" autocomplete="off" onsubmit="return false">
+
+<div class="step" data-en="Timeframes">
+  <h2><span>1</span>Timeframe</h2>
+  <p class="intro">Përgjigju ashtu si e ke bërë në backtest-in në TradingView. Përgjigjet ruhen vetë, mund ta lësh dhe të kthehesh.</p>
+  <fieldset class="q" data-en="Signal (entry) timeframe" data-req>
+    <legend>Në cilin timeframe e merr sinjalin për të hyrë?</legend>
+    <div class="chips">
+      <label><input type="radio" name="tfe" value="M1"><span>M1</span></label>
+      <label><input type="radio" name="tfe" value="M5"><span>M5</span></label>
+      <label><input type="radio" name="tfe" value="M15"><span>M15</span></label>
+      <label><input type="radio" name="tfe" value="M30"><span>M30</span></label>
+      <label><input type="radio" name="tfe" value="H1"><span>H1</span></label>
+      <label><input type="radio" name="tfe" value="H4"><span>H4</span></label>
+    </div>
+  </fieldset>
+  <fieldset class="q" data-en="Higher timeframe used for direction">
+    <legend>A shikon një timeframe më të madh për drejtimin e tregut?</legend>
+    <div class="chips">
+      <label><input type="radio" name="tfc" value="None" checked><span>Jo</span></label>
+      <label><input type="radio" name="tfc" value="M15"><span>M15</span></label>
+      <label><input type="radio" name="tfc" value="H1"><span>H1</span></label>
+      <label><input type="radio" name="tfc" value="H4"><span>H4</span></label>
+      <label><input type="radio" name="tfc" value="D1"><span>D1</span></label>
+    </div>
+  </fieldset>
+</div>
+
+<div class="step" data-en="Direction filter (when BUY only / SELL only)">
+  <h2><span>2</span>Drejtimi</h2>
+  <p class="intro">Si e vendos nëse kërkon vetëm BUY apo vetëm SELL.</p>
+  <fieldset class="q" data-en="Direction method" data-req>
+    <legend>Si e përcakton drejtimin?</legend>
+    <div class="chips">
+      <label><input type="radio" name="dir" value="Moving average"><span>Me mesatare lëvizëse (MA)</span></label>
+      <label><input type="radio" name="dir" value="Market structure (higher highs/lows)"><span>Me strukturën e tregut</span></label>
+      <label><input type="radio" name="dir" value="Other indicator"><span>Me indikator tjetër</span></label>
+      <label><input type="radio" name="dir" value="No direction filter, both BUY and SELL allowed"><span>S'kam filtër, marr të dyja</span></label>
+    </div>
+  </fieldset>
+  <div class="q sub-q" data-en="Direction: moving average rule" data-req data-when="dir:Moving average">
+    <label for="direction-moving-average-rule">Cila MA dhe si e lexon?<span class="hint">Shkruaj llojin (EMA/SMA), periudhën dhe timeframe-in</span></label>
+    <input type="text" id="direction-moving-average-rule" placeholder="P.sh. BUY vetëm kur qiriu mbyllet mbi EMA 200, SELL vetëm kur mbyllet nën të">
+  </div>
+  <div class="q sub-q" data-en="Direction: market structure rule" data-req data-when="dir:Market structure (higher highs/lows)">
+    <label for="direction-market-structure-rule">Si e dallon trendin nga struktura?</label>
+    <input type="text" id="direction-market-structure-rule" placeholder="P.sh. BUY kur maja e fundit dhe gropa e fundit në H1 janë më të larta se të mëparshmet">
+  </div>
+  <div class="q sub-q" data-en="Direction: other indicator rule" data-req data-when="dir:Other indicator">
+    <label for="direction-other-indicator-rule">Cili indikator, me cilat settings, dhe si e lexon?</label>
+    <input type="text" id="direction-other-indicator-rule" placeholder="P.sh. MACD 12/26/9 në H4: BUY kur histogrami është mbi zero">
+  </div>
+</div>
+
+<div class="step" data-en="BUY entry signal">
+  <h2><span>3</span>Sinjali për BUY</h2>
+  <p class="intro">Zgjidh çdo kusht që duhet të plotësohet për të hapur BUY. Për secilin, shkruaj numrat e saktë.</p>
+  <fieldset class="q" data-en="BUY conditions (all must be true)" data-req>
+    <legend>Çfarë duhet të ndodhë për të hapur BUY?</legend>
+    <div class="chips">
+      <label><input type="checkbox" name="cond" value="MA crossover"><span>Kryqëzim i dy MA-ve</span></label>
+      <label><input type="checkbox" name="cond" value="Pullback to a moving average"><span>Çmimi kthehet te një MA</span></label>
+      <label><input type="checkbox" name="cond" value="RSI"><span>RSI</span></label>
+      <label><input type="checkbox" name="cond" value="MACD"><span>MACD</span></label>
+      <label><input type="checkbox" name="cond" value="Stochastic"><span>Stochastic</span></label>
+      <label><input type="checkbox" name="cond" value="Bollinger Bands"><span>Bollinger Bands</span></label>
+      <label><input type="checkbox" name="cond" value="Break of a level"><span>Thyerje e një niveli</span></label>
+      <label><input type="checkbox" name="cond" value="Retest of a broken level"><span>Retest i nivelit të thyer</span></label>
+      <label><input type="checkbox" name="cond" value="Candle pattern"><span>Model qiriu</span></label>
+      <label><input type="checkbox" name="cond" value="Fibonacci retracement"><span>Fibonacci</span></label>
+      <label><input type="checkbox" name="cond" value="Custom TradingView indicator"><span>Indikator i personalizuar nga TradingView</span></label>
+      <label><input type="checkbox" name="cond" value="Other"><span>Tjetër</span></label>
+    </div>
+  </fieldset>
+  <div class="q sub-q" data-en="BUY condition: MA crossover" data-req data-when="cond:MA crossover">
+    <label for="buy-condition-ma-crossover">Cilat MA kryqëzohen?</label>
+    <input type="text" id="buy-condition-ma-crossover" placeholder="P.sh. EMA 9 kalon mbi EMA 21, në mbyllje të qiriut">
+  </div>
+  <div class="q sub-q" data-en="BUY condition: pullback to MA" data-req data-when="cond:Pullback to a moving average">
+    <label for="buy-condition-pullback-to-ma">Cila MA, dhe sa afër duhet të vijë çmimi?</label>
+    <input type="text" id="buy-condition-pullback-to-ma" placeholder="P.sh. EMA 50; qiriu prek EMA-në ose mbyllet brenda 1$ prej saj">
+  </div>
+  <div class="q sub-q" data-en="BUY condition: RSI" data-req data-when="cond:RSI">
+    <label for="buy-condition-rsi">Periudha dhe kushti i saktë</label>
+    <input type="text" id="buy-condition-rsi" placeholder="P.sh. RSI 14 kalon nga poshtë mbi 30">
+  </div>
+  <div class="q sub-q" data-en="BUY condition: MACD" data-req data-when="cond:MACD">
+    <label for="buy-condition-macd">Settings dhe kushti i saktë</label>
+    <input type="text" id="buy-condition-macd" placeholder="P.sh. 12/26/9: vija MACD kalon mbi vijën e sinjalit">
+  </div>
+  <div class="q sub-q" data-en="BUY condition: Stochastic" data-req data-when="cond:Stochastic">
+    <label for="buy-condition-stochastic">Settings dhe kushti i saktë</label>
+    <input type="text" id="buy-condition-stochastic" placeholder="P.sh. 14/3/3: %K kalon mbi %D nën nivelin 20">
+  </div>
+  <div class="q sub-q" data-en="BUY condition: Bollinger Bands" data-req data-when="cond:Bollinger Bands">
+    <label for="buy-condition-bollinger-bands">Settings dhe kushti i saktë</label>
+    <input type="text" id="buy-condition-bollinger-bands" placeholder="P.sh. 20/2: qiriu prek brezin e poshtëm dhe mbyllet brenda tij">
+  </div>
+  <div class="q sub-q" data-en="BUY condition: level breakout" data-req data-when="cond:Break of a level">
+    <label for="buy-condition-level-breakout">Cili nivel, dhe si e quan të thyer?</label>
+    <input type="text" id="buy-condition-level-breakout" placeholder="P.sh. maksimumi i 20 qirinjve të fundit; qiriu duhet të mbyllet mbi të">
+  </div>
+  <div class="q sub-q" data-en="BUY condition: retest" data-req data-when="cond:Retest of a broken level">
+    <label for="buy-condition-retest">Pas sa qirinjsh, dhe sa afër nivelit duhet të kthehet?</label>
+    <input type="text" id="buy-condition-retest" placeholder="P.sh. brenda 10 qirinjve pas thyerjes, prek nivelin me ±0.5$">
+  </div>
+  <div class="q sub-q" data-en="BUY condition: candle pattern" data-req data-when="cond:Candle pattern">
+    <label for="buy-condition-candle-pattern">Cili model, dhe si e përcakton saktë?</label>
+    <input type="text" id="buy-condition-candle-pattern" placeholder="P.sh. engulfing: trupi i qiriut jeshil mbulon plotësisht trupin e qiriut të kuq para tij">
+  </div>
+  <div class="q sub-q" data-en="BUY condition: Fibonacci" data-req data-when="cond:Fibonacci retracement">
+    <label for="buy-condition-fibonacci">Nga cila majë te cila gropë, dhe në cilin nivel hyn?</label>
+    <input type="text" id="buy-condition-fibonacci" placeholder="P.sh. nga gropa te maja e fundit në H1; hyj te 0.618">
+  </div>
+  <div class="q sub-q" data-en="BUY condition: custom indicator" data-req data-when="cond:Custom TradingView indicator">
+    <label for="buy-condition-custom-indicator">Emri i indikatorit dhe kushti</label>
+    <input type="text" id="buy-condition-custom-indicator" placeholder="Shkruaj emrin si në TradingView. Nëse ke kodin Pine Script, dërgoje në WhatsApp">
+  </div>
+  <div class="q sub-q" data-en="BUY condition: other" data-req data-when="cond:Other">
+    <label for="buy-condition-other">Përshkruaje saktë</label>
+    <input type="text" id="buy-condition-other" placeholder="Me numra, si në shembujt më lart">
+  </div>
+  <fieldset class="q" data-en="Timing between conditions">
+    <legend>Nëse ke zgjedhur më shumë se një kusht: kur duhet të plotësohen?</legend>
+    <div class="chips">
+      <label><input type="radio" name="tim" value="All on the same candle"><span>Në të njëjtin qiri</span></label>
+      <label><input type="radio" name="tim" value="In order, within a number of candles"><span>Me radhë, brenda disa qirinjve</span></label>
+    </div>
+    <input type="text" class="detail" data-when="tim:In order, within a number of candles" placeholder="Cili kusht i pari dhe brenda sa qirinjve? P.sh. kryqëzimi, pastaj RSI brenda 3 qirinjve">
+  </fieldset>
+  <fieldset class="q" data-en="Entry execution" data-req>
+    <legend>Kur hyn saktësisht, pasi plotësohen kushtet?</legend>
+    <div class="chips">
+      <label><input type="radio" name="exe" value="Market order at the close of the signal candle"><span>Kur mbyllet qiriu i sinjalit</span></label>
+      <label><input type="radio" name="exe" value="Buy stop above the high of the signal candle"><span>Buy stop mbi maksimumin e qiriut</span></label>
+      <label><input type="radio" name="exe" value="Limit order at a level"><span>Limit order te një nivel</span></label>
+    </div>
+    <input type="text" class="detail" data-when="exe:Buy stop above the high of the signal candle" placeholder="Sa $ mbi maksimumin, dhe sa qirinj e mban para se ta fshish?">
+    <input type="text" class="detail" data-when="exe:Limit order at a level" placeholder="Cili nivel, dhe sa qirinj e mban?">
+  </fieldset>
+  <div class="q" data-en="BUY rule in the trader's own words">
+    <label for="buy">Shpjegoje edhe me fjalët e tua, hap pas hapi <span class="opt-tag">(rekomandohet)</span></label>
+    <textarea id="buy" placeholder="1. …&#10;2. …&#10;3. …"></textarea>
+  </div>
+  <label class="check"><input type="checkbox" id="mirror" checked><span>SELL është saktësisht e kundërta e BUY</span></label>
+  <div class="q" data-en="SELL rule (differs from BUY)" data-req data-when-not="mirror" style="margin-top:18px">
+    <label for="sell">Çfarë ndryshon te SELL?</label>
+    <textarea id="sell"></textarea>
+  </div>
+</div>
+
+<div class="step" data-en="When NOT to enter / trade handling">
+  <h2><span>4</span>Kur nuk hyn</h2>
+  <fieldset class="q" data-en="Skip a signal when" data-req>
+    <legend>A ka raste kur ka sinjal, por ti nuk hyn?</legend>
+    <div class="chips">
+      <label><input type="checkbox" name="skip" value="Never, always take valid signals"><span>Jo, hyj gjithmonë</span></label>
+      <label><input type="checkbox" name="skip" value="Price too far from the MA"><span>Çmimi shumë larg MA-së</span></label>
+      <label><input type="checkbox" name="skip" value="Signal candle too big"><span>Qiriu i sinjalit shumë i madh</span></label>
+      <label><input type="checkbox" name="skip" value="Market ranging (sideways)"><span>Tregu anash</span></label>
+      <label><input type="checkbox" name="skip" value="Too close to a strong level"><span>Afër një niveli të fortë</span></label>
+    </div>
+  </fieldset>
+  <div class="q sub-q" data-en="Skip: max distance from MA" data-req data-when="skip:Price too far from the MA">
+    <label for="skip-max-distance-from-ma">Sa $ larg MA-së është "shumë larg"?</label>
+    <input type="text" id="skip-max-distance-from-ma" placeholder="P.sh. mbi 8$ nga EMA 50">
+  </div>
+  <div class="q sub-q" data-en="Skip: max signal candle size" data-req data-when="skip:Signal candle too big">
+    <label for="skip-max-signal-candle-size">Sa $ është qiri "shumë i madh"?</label>
+    <input type="text" id="skip-max-signal-candle-size" placeholder="P.sh. mbi 10$ nga maksimumi te minimumi">
+  </div>
+  <div class="q sub-q" data-en="Skip: how ranging market is detected" data-req data-when="skip:Market ranging (sideways)">
+    <label for="skip-how-ranging-market-is-detected">Si e dallon që tregu është anash?</label>
+    <input type="text" id="skip-how-ranging-market-is-detected" placeholder="P.sh. EMA 50 dhe EMA 200 janë brenda 2$ nga njëra-tjetra">
+  </div>
+  <div class="q sub-q" data-en="Skip: distance to strong level" data-req data-when="skip:Too close to a strong level">
+    <label for="skip-distance-to-strong-level">Cili nivel, dhe sa $ afër?</label>
+    <input type="text" id="skip-distance-to-strong-level" placeholder="P.sh. brenda 3$ nga maksimumi ose minimumi i ditës së kaluar">
+  </div>
+  <fieldset class="q" data-en="Opposite signal while a trade is open" data-req>
+    <legend>Je në BUY dhe del sinjal SELL. Çfarë bën?</legend>
+    <div class="chips">
+      <label><input type="radio" name="opp" value="Ignore it, let the trade hit SL/TP"><span>E injoroj</span></label>
+      <label><input type="radio" name="opp" value="Close the open trade only"><span>E mbyll tregtinë</span></label>
+      <label><input type="radio" name="opp" value="Close and open the opposite trade"><span>E mbyll dhe hap SELL</span></label>
+    </div>
+  </fieldset>
+  <fieldset class="q" data-en="Re-entry after a trade closes" data-req>
+    <legend>Tregtia mbyllet dhe kushtet janë ende të plotësuara. Hyn prapë?</legend>
+    <div class="chips">
+      <label><input type="radio" name="re" value="No, wait for a completely new signal"><span>Jo, pres sinjal të ri</span></label>
+      <label><input type="radio" name="re" value="Yes, enter again"><span>Po, hyj prapë</span></label>
+    </div>
+  </fieldset>
+</div>
+
+<div class="step" data-en="Stop loss and take profit">
+  <h2><span>5</span>Stop Loss dhe Take Profit</h2>
+  <fieldset class="q" data-en="Stop loss placement" data-req>
+    <legend>Ku e vendos Stop Loss-in?</legend>
+    <div class="chips">
+      <label><input type="radio" name="sl" value="Beyond the last swing low/high"><span>Nën gropën e fundit</span></label>
+      <label><input type="radio" name="sl" value="Beyond the signal candle low/high"><span>Nën qiriun e sinjalit</span></label>
+      <label><input type="radio" name="sl" value="Fixed distance"><span>Distancë fikse</span></label>
+      <label><input type="radio" name="sl" value="ATR-based"><span>Me ATR</span></label>
+    </div>
+  </fieldset>
+  <div class="q sub-q" data-en="SL: swing definition and buffer" data-req data-when="sl:Beyond the last swing low/high">
+    <label for="sl-swing-definition-and-buffer">Si e gjen gropën, dhe sa $ nën të?</label>
+    <input type="text" id="sl-swing-definition-and-buffer" placeholder="P.sh. minimumi më i ulët i 10 qirinjve të fundit, 1$ nën të">
+  </div>
+  <div class="q sub-q" data-en="SL: buffer below signal candle" data-req data-when="sl:Beyond the signal candle low/high">
+    <label for="sl-buffer-below-signal-candle">Sa $ nën minimumin e qiriut?</label>
+    <input type="text" id="sl-buffer-below-signal-candle" placeholder="P.sh. 0.5$">
+  </div>
+  <div class="q sub-q" data-en="SL: fixed distance" data-req data-when="sl:Fixed distance">
+    <label for="sl-fixed-distance">Sa $ larg hyrjes?</label>
+    <input type="text" id="sl-fixed-distance" placeholder="P.sh. 5$">
+  </div>
+  <div class="q sub-q" data-en="SL: ATR settings" data-req data-when="sl:ATR-based">
+    <label for="sl-atr-settings">Periudha dhe shumëzuesi</label>
+    <input type="text" id="sl-atr-settings" placeholder="P.sh. ATR 14 × 1.5">
+  </div>
+  <fieldset class="q" data-en="Skip trade if SL is too large">
+    <legend>Nëse SL del shumë i madh, a e anashkalon tregtinë?</legend>
+    <div class="chips">
+      <label><input type="radio" name="msl" value="No, always take the trade" checked><span>Jo, hyj gjithmonë</span></label>
+      <label><input type="radio" name="msl" value="Yes, skip if SL is larger than"><span>Po, nëse kalon</span></label>
+    </div>
+    <input type="text" class="detail" data-when="msl:Yes, skip if SL is larger than" placeholder="Sa $? P.sh. 15$">
+  </fieldset>
+  <fieldset class="q" data-en="How TP is set" data-req>
+    <legend>Si e vendos Take Profit-in?</legend>
+    <div class="chips">
+      <label><input type="radio" name="tpm" value="Exact multiple of SL distance"><span>Saktë 2× ose 3× SL-në</span></label>
+      <label><input type="radio" name="tpm" value="At a price level"><span>Te një nivel</span></label>
+    </div>
+  </fieldset>
+  <div class="q sub-q" data-en="TP: which level" data-req data-when="tpm:At a price level">
+    <label for="tp-which-level">Cili nivel?</label>
+    <input type="text" id="tp-which-level" placeholder="P.sh. maksimumi i ditës së kaluar, ose maja e fundit në H1">
+  </div>
+  <fieldset class="q" data-en="Risk:reward" data-req data-when="tpm:Exact multiple of SL distance">
+    <legend>1:2 apo 1:3?</legend>
+    <div class="chips">
+      <label><input type="radio" name="tp" value="Always 1:2"><span>Gjithmonë 1:2</span></label>
+      <label><input type="radio" name="tp" value="Always 1:3"><span>Gjithmonë 1:3</span></label>
+      <label><input type="radio" name="tp" value="Depends"><span>Varet</span></label>
+    </div>
+    <input type="text" class="detail" data-when="tp:Depends" placeholder="Kur saktësisht zgjedh 1:3? P.sh. kur çmimi është mbi EMA 200 në H4">
+  </fieldset>
+  <fieldset class="q" data-en="Break-even" data-req>
+    <legend>E lëviz SL-në në hyrje (break-even)?</legend>
+    <div class="chips">
+      <label><input type="radio" name="be" value="No"><span>Jo</span></label>
+      <label><input type="radio" name="be" value="Yes, when profit reaches 1R"><span>Po, kur fitimi = sa SL</span></label>
+      <label><input type="radio" name="be" value="Yes, other"><span>Po, ndryshe</span></label>
+    </div>
+    <input type="text" class="detail" data-when="be:Yes, other" placeholder="Kur saktësisht? P.sh. kur fitimi arrin 5$">
+  </fieldset>
+  <fieldset class="q" data-en="Partial close / trailing" data-req>
+    <legend>Gjatë tregtisë, mbyll një pjesë ose e ndjek çmimin?</legend>
+    <div class="chips">
+      <label><input type="radio" name="pc" value="No, full position until SL or TP"><span>Jo, deri te SL ose TP</span></label>
+      <label><input type="radio" name="pc" value="Partial close"><span>Mbyll një pjesë</span></label>
+      <label><input type="radio" name="pc" value="Trailing stop"><span>Trailing stop</span></label>
+    </div>
+    <input type="text" class="detail" data-when="pc:Partial close" placeholder="Sa % dhe kur? P.sh. 50% kur fitimi = sa SL">
+    <input type="text" class="detail" data-when="pc:Trailing stop" placeholder="Si? P.sh. SL ndjek çmimin 5$ prapa, pasi fitimi kalon 5$">
+  </fieldset>
+</div>
+
+<div class="step" data-en="Risk limits">
+  <h2><span>6</span>Risku</h2>
+  <p class="intro">I kam vendosur siç më the: 1% për tregti, maksimum 3 në ditë.</p>
+  <div class="steppers">
+    <div class="q" data-en="Risk per trade (% of balance)">
+      <label>Risk për tregti</label>
+      <div class="stepper" data-step="0.25" data-min="0.25" data-max="5" data-suffix="%">
+        <button type="button" aria-label="Më pak">−</button><output id="risk">1</output><button type="button" aria-label="Më shumë">+</button>
+      </div>
+    </div>
+    <div class="q" data-en="Max trades per day">
+      <label>Max në ditë</label>
+      <div class="stepper" data-step="1" data-min="1" data-max="10">
+        <button type="button" aria-label="Më pak">−</button><output id="maxd">3</output><button type="button" aria-label="Më shumë">+</button>
+      </div>
+    </div>
+    <div class="q" data-en="Max positions open at the same time">
+      <label>Hapur njëkohësisht</label>
+      <div class="stepper" data-step="1" data-min="1" data-max="3">
+        <button type="button" aria-label="Më pak">−</button><output id="maxo">1</output><button type="button" aria-label="Më shumë">+</button>
+      </div>
+    </div>
+  </div>
+  <fieldset class="q" data-en="After a winning trade" data-req>
+    <legend>Nëse tregtia e parë e ditës fiton, a vazhdon?</legend>
+    <div class="chips">
+      <label><input type="radio" name="aw" value="Keep trading up to the daily max"><span>Po, deri në 3</span></label>
+      <label><input type="radio" name="aw" value="Stop for the day after a win"><span>Jo, ndalem pas fitores</span></label>
+    </div>
+  </fieldset>
+  <fieldset class="q" data-en="After losing trades" data-req>
+    <legend>Nëse humb, kur ndalet për atë ditë?</legend>
+    <div class="chips">
+      <label><input type="radio" name="ds" value="Only at the daily max of trades (max -3%)"><span>Vetëm pas 3 tregtive (max -3%)</span></label>
+      <label><input type="radio" name="ds" value="Stop after 2 losses"><span>Pas 2 humbjeve</span></label>
+      <label><input type="radio" name="ds" value="Stop after 1 loss"><span>Pas 1 humbjeje</span></label>
+    </div>
+  </fieldset>
+</div>
+
+<div class="step" data-en="Time and filters">
+  <h2><span>7</span>Orari dhe lajmet</h2>
+  <fieldset class="q" data-en="Sessions" data-req>
+    <legend>Kur tregton?</legend>
+    <div class="chips">
+      <label><input type="checkbox" name="ses" value="Asia"><span>Azia</span></label>
+      <label><input type="checkbox" name="ses" value="London"><span>London</span></label>
+      <label><input type="checkbox" name="ses" value="New York"><span>New York</span></label>
+      <label><input type="checkbox" name="ses" value="All day"><span>Gjithë ditën</span></label>
+    </div>
+    <input type="text" class="detail" placeholder="Orari i saktë sipas orës së Kosovës: nga … deri … (p.sh. 09:00–17:00)">
+  </fieldset>
+  <fieldset class="q" data-en="Open trades when the trading hours end" data-req>
+    <legend>Kur mbaron orari yt, çfarë bën me tregtinë e hapur?</legend>
+    <div class="chips">
+      <label><input type="radio" name="se" value="Leave it open until SL or TP"><span>E lë deri te SL ose TP</span></label>
+      <label><input type="radio" name="se" value="Close it at the end of the trading hours"><span>E mbyll</span></label>
+    </div>
+  </fieldset>
+  <fieldset class="q" data-en="News filter">
+    <legend>I shmang lajmet e mëdha (NFP, CPI, FOMC)?</legend>
+    <div class="chips">
+      <label><input type="radio" name="nw" value="No"><span>Jo</span></label>
+      <label><input type="radio" name="nw" value="Yes, 15 min before/after"><span>Po, 15 min</span></label>
+      <label><input type="radio" name="nw" value="Yes, 30 min before/after"><span>Po, 30 min</span></label>
+      <label><input type="radio" name="nw" value="Yes, 60 min before/after"><span>Po, 1 orë</span></label>
+    </div>
+  </fieldset>
+  <fieldset class="q" data-en="Close before weekend">
+    <legend>Mbyll tregtitë para fundjavës?</legend>
+    <div class="chips">
+      <label><input type="radio" name="wk" value="No"><span>Jo</span></label>
+      <label><input type="radio" name="wk" value="Yes, Friday evening"><span>Po, të premten</span></label>
+    </div>
+  </fieldset>
+  <fieldset class="q" data-en="Phone push notifications">
+    <legend>Njoftime në telefon kur hap ose mbyll tregti?</legend>
+    <div class="chips">
+      <label><input type="radio" name="pn" value="Yes" checked><span>Po</span></label>
+      <label><input type="radio" name="pn" value="No"><span>Jo</span></label>
+    </div>
+  </fieldset>
+</div>
+
+<div class="step" data-en="Trader's TradingView backtest">
+  <h2><span>8</span>Backtest-i yt</h2>
+  <p class="intro">Rezultatet nga testimi yt në TradingView.</p>
+  <fieldset class="q" data-en="TradingView gold chart used for the backtest" data-req>
+    <legend>Cilin grafik ari përdore në TradingView?<span class="hint">Shkruhet lart majtas në grafik</span></legend>
+    <div class="chips">
+      <label><input type="radio" name="tvs" value="OANDA:XAUUSD"><span>OANDA</span></label>
+      <label><input type="radio" name="tvs" value="FX:XAUUSD / FXCM"><span>FXCM</span></label>
+      <label><input type="radio" name="tvs" value="TVC:GOLD"><span>TVC:GOLD</span></label>
+      <label><input type="radio" name="tvs" value="Other"><span>Tjetër</span></label>
+    </div>
+    <input type="text" class="detail" data-when="tvs:Other" placeholder="Shkruaje si shfaqet, p.sh. PEPPERSTONE:XAUUSD">
+  </fieldset>
+  <fieldset class="q" data-en="TradingView chart timezone (for matching screenshot times)" data-req>
+    <legend>Në cilën orë e ke grafikun në TradingView?<span class="hint">Poshtë djathtas në grafik</span></legend>
+    <div class="chips">
+      <label><input type="radio" name="tz" value="Kosovo / Europe Berlin (UTC+1/+2)"><span>Ora e Kosovës</span></label>
+      <label><input type="radio" name="tz" value="UTC"><span>UTC</span></label>
+      <label><input type="radio" name="tz" value="New York (UTC-5/-4)"><span>New York</span></label>
+      <label><input type="radio" name="tz" value="Other / unknown"><span>Tjetër / s'e di</span></label>
+    </div>
+  </fieldset>
+  <div class="q" data-en="Backtest period" data-req>
+    <label for="btp">Cilin muaj e testove?</label>
+    <input type="text" id="btp" placeholder="P.sh. 1–30 shtator 2026">
+  </div>
+  <fieldset class="q" data-en="Number of trades in backtest" data-req>
+    <legend>Sa tregti dolën gjithsej?</legend>
+    <div class="chips">
+      <label><input type="radio" name="btn" value="Under 20"><span>Nën 20</span></label>
+      <label><input type="radio" name="btn" value="20–40"><span>20–40</span></label>
+      <label><input type="radio" name="btn" value="40–60"><span>40–60</span></label>
+      <label><input type="radio" name="btn" value="Over 60"><span>Mbi 60</span></label>
+    </div>
+    <input type="text" class="detail" placeholder="Numri i saktë, nëse e di">
+  </fieldset>
+  <fieldset class="q" data-en="Approx. win rate" data-req>
+    <legend>Sa prej tyre fituan, afërsisht?</legend>
+    <div class="chips">
+      <label><input type="radio" name="btw" value="45–50%"><span>45–50%</span></label>
+      <label><input type="radio" name="btw" value="50–55%"><span>50–55%</span></label>
+      <label><input type="radio" name="btw" value="55–60%"><span>55–60%</span></label>
+      <label><input type="radio" name="btw" value="Over 60%"><span>Mbi 60%</span></label>
+    </div>
+  </fieldset>
+  <fieldset class="q" data-en="Trades recorded" data-req>
+    <legend>A i ke shënuar tregtitë (data, ora, hyrja, SL, TP)?</legend>
+    <div class="chips">
+      <label><input type="radio" name="rec" value="Yes, in a spreadsheet (can share)"><span>Po, në Excel/Sheets</span></label>
+      <label><input type="radio" name="rec" value="Yes, marked on TradingView charts"><span>Po, në grafik</span></label>
+      <label><input type="radio" name="rec" value="Not recorded"><span>Jo</span></label>
+    </div>
+  </fieldset>
+  <div class="q">
+    <label for="shots">Screenshot nga backtest-i<span class="hint">3–5 tregti, fituese dhe humbëse. Në secilën të duket qiriu i hyrjes, SL, TP dhe indikatorët, me datë e orë.</span></label>
+    <label class="upl" for="shots">Shto foto</label>
+    <input type="file" id="shots" accept="image/*" multiple hidden>
+    <div class="thumbs" id="thumbs"></div>
+  </div>
+  <div class="q" data-en="Anything else">
+    <label for="oth">Diçka tjetër që duhet ta di? <span class="opt-tag">(opsionale)</span></label>
+    <textarea id="oth" style="min-height:80px"></textarea>
+  </div>
+</div>
+
+<div class="step" id="done">
+  <h2><span>✓</span>Gati për ta dërguar</h2>
+  <p class="missing" id="missing" hidden></p>
+  <p class="intro" id="doneintro">Shtyp butonin dhe përgjigjet shkojnë direkt te Velo, bashkë me fotot.</p>
+  <div class="actions">
+    <button type="button" class="main" id="send">Dërgo përgjigjet</button>
+    <button type="button" class="ghost" id="reset">Fillo nga e para</button>
+  </div>
+  <p id="status" role="status"></p>
+  <div id="fallback" hidden>
+    <p class="intro">Dërgimi direkt s'funksionoi nga kjo pajisje. Shtyp butonin poshtë, pastaj ngjiti përgjigjet në WhatsApp te Velo dhe dërgo fotot veç.</p>
+    <button type="button" class="main" id="copy">Kopjo përgjigjet</button>
+  </div>
+  <textarea id="out" readonly aria-hidden="true" tabindex="-1" class="offscreen"></textarea>
+</div>
+
+</form>
+</div>
+
+<div class="bar">
+  <div class="bar-in">
+    <div class="meter" aria-hidden="true"><i id="fill"></i></div>
+    <div class="nav">
+      <button type="button" class="ghost" id="back">Prapa</button>
+      <button type="button" class="main" id="next">Vazhdo</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var KEY = 'xau-ea-questionnaire-v11';
+  var form = document.getElementById('f');
+  var steps = Array.prototype.slice.call(document.querySelectorAll('.step'));
+  var out = document.getElementById('out');
+  var cur = 0;
+
+  function els(){
+    return Array.prototype.slice.call(form.querySelectorAll('input, textarea')).filter(function(e){ return e.id !== 'out' && e.type !== 'file'; });
+  }
+  function outputs(){ return Array.prototype.slice.call(form.querySelectorAll('output')); }
+
+  function save(){
+    try{
+      var data = {
+        f: els().map(function(e){ return (e.type === 'radio' || e.type === 'checkbox') ? e.checked : e.value; }),
+        o: outputs().map(function(o){ return o.value; }),
+        s: cur
+      };
+      localStorage.setItem(KEY, JSON.stringify(data));
+    }catch(e){}
+  }
+  function load(){
+    try{
+      var raw = localStorage.getItem(KEY); if(!raw) return;
+      var d = JSON.parse(raw); var list = els();
+      if(d && Array.isArray(d.f) && d.f.length === list.length){
+        list.forEach(function(e,i){
+          if(e.type === 'radio' || e.type === 'checkbox') e.checked = !!d.f[i]; else e.value = d.f[i];
+        });
+      }
+      if(d && Array.isArray(d.o)) outputs().forEach(function(o,i){ if(d.o[i] != null) o.value = d.o[i]; });
+      if(d && typeof d.s === 'number' && d.s >= 0 && d.s < steps.length) cur = d.s;
+    }catch(e){}
+  }
+
+  function isChecked(name, val){
+    var list = form.querySelectorAll('input[name="' + name + '"]');
+    for(var i = 0; i < list.length; i++){
+      if(list[i].checked && (val === '*' || list[i].value === val)) return true;
+    }
+    return false;
+  }
+  function applyConditions(){
+    form.querySelectorAll('[data-when]').forEach(function(el){
+      var p = el.getAttribute('data-when'); var i = p.indexOf(':');
+      el.hidden = !isChecked(p.slice(0,i), p.slice(i+1));
+    });
+    form.querySelectorAll('[data-when-not]').forEach(function(el){
+      var box = document.getElementById(el.getAttribute('data-when-not'));
+      el.hidden = !!(box && box.checked);
+    });
+  }
+
+  function valueOf(q){
+    var v = '';
+    var out = q.querySelector('output');
+    var radios = q.querySelectorAll('input[type=radio]');
+    var checks = q.querySelectorAll('input[type=checkbox]');
+    if(out){ v = out.value + (q.querySelector('.stepper').getAttribute('data-suffix') || ''); }
+    else if(radios.length){ var c = q.querySelector('input[type=radio]:checked'); v = c ? c.value : ''; }
+    else if(checks.length){ v = Array.prototype.filter.call(checks, function(x){ return x.checked; }).map(function(x){ return x.value; }).join(', '); }
+    else { var f = q.querySelector('input:not(.detail), textarea'); v = f ? f.value.trim() : ''; }
+    q.querySelectorAll('.detail').forEach(function(d){
+      if(!d.hidden && d.value.trim()) v = v ? v + '. Detail: ' + d.value.trim() : d.value.trim();
+    });
+    return v;
+  }
+
+  function build(){
+    var lines = [
+      '# EA build spec: XAUUSD, MetaTrader 5 (MQL5)',
+      '',
+      'Build an MQL5 Expert Advisor for MT5 that implements the strategy below exactly.',
+      'Answers come from the trader; free-text parts may be in Albanian.',
+      'If any rule is ambiguous or contradictory, list your questions BEFORE writing code.',
+      '',
+      '## Developer requirements',
+      '- Broker symbol for gold on the client\'s Tauro account: XAUUSD.r (confirmed). Trade the chart symbol (_Symbol), so it works on XAUUSD.r and on any test account.',
+      '- Lot size from risk %: use SL distance with SYMBOL_TRADE_TICK_VALUE and SYMBOL_TRADE_TICK_SIZE; clamp to volume min/max/step.',
+      '- Respect SYMBOL_TRADE_STOPS_LEVEL and the broker filling mode.',
+      '- Developer to verify on the account (not asked to the trader): hedging vs netting, commission per lot, typical spread, stops level, contract size of XAUUSD.r.',
+      '- Distances the trader gives in $ are gold price dollars (e.g. 3$ = a 3.00 move in XAUUSD.r). Include commission in risk sizing and backtests.',
+      '- Evaluate signals on closed bars unless the spec says otherwise.',
+      '- Daily counters (trades, losses) reset when the broker server day changes.',
+      '- Automation mode: FULLY AUTOMATIC (confirmed). The EA opens, manages and closes trades on its own.',
+      '- Use a magic number; every rule and limit is an input parameter. Plain-English comments.',
+      '- Push notifications via SendNotification() if requested.',
+      '- News filter (if requested): use the MQL5 Economic Calendar; it does not work in the Strategy Tester, so make it switchable off for backtests.',
+      '- Add a demo-only build option (refuses to trade on real accounts) for client testing before payment.',
+      '- Defaults the trader was not asked about: trade Mon–Fri, risk % from balance, max-spread filter input with a sensible default for gold, all as inputs.',
+      '- The trader backtested manually on TradingView; build so the EA can be backtested over the same period and its trades compared to his.',
+      ''
+    ];
+    var missing = [];
+    steps.forEach(function(st, si){
+      var title = st.getAttribute('data-en'); if(!title) return;
+      lines.push('## ' + title);
+      st.querySelectorAll('.q[data-en]').forEach(function(q){
+        if(q.hidden) return;
+        var v = valueOf(q);
+        if(q.hasAttribute('data-req') && !v && missing.indexOf(si + 1) < 0) missing.push(si + 1);
+        lines.push('- ' + q.getAttribute('data-en') + ': ' + (v || (q.hasAttribute('data-req') ? 'NOT ANSWERED' : 'not specified')));
+      });
+      if(st.querySelector('#mirror') && document.getElementById('mirror').checked) lines.push('- SELL rule: exact mirror of the BUY rule');
+      lines.push('');
+    });
+    lines.push('Screenshots of example trades: ' + (shots.length ? shots.length + ' attached.' : 'none attached, may arrive separately.'));
+    out.value = lines.join('\n');
+    var m = document.getElementById('missing');
+    m.hidden = !missing.length;
+    m.textContent = missing.length ? 'Mungojnë përgjigje te ' + (missing.length > 1 ? 'hapat ' : 'hapi ') + missing.join(', ') + '. Kthehu me Prapa dhe plotësoji, që roboti të ndërtohet saktë.' : '';
+  }
+
+  function show(){
+    steps.forEach(function(s,i){ s.classList.toggle('on', i === cur); });
+    var total = steps.length - 1;
+    document.getElementById('stepline').textContent = cur < total ? 'Hapi ' + (cur + 1) + ' nga ' + total + ', rreth 5 minuta gjithsej' : 'Të gjitha hapat u plotësuan';
+    document.getElementById('fill').style.width = Math.round(cur / total * 100) + '%';
+    document.getElementById('back').style.visibility = cur === 0 ? 'hidden' : 'visible';
+    var next = document.getElementById('next');
+    next.textContent = cur === total - 1 ? 'Shiko përmbledhjen' : 'Vazhdo';
+    next.style.display = cur === total ? 'none' : '';
+    if(cur === total) build();
+    window.scrollTo(0,0);
+    save();
+  }
+
+  document.getElementById('next').addEventListener('click', function(){ if(cur < steps.length - 1){ cur++; show(); } });
+  document.getElementById('back').addEventListener('click', function(){ if(cur > 0){ cur--; show(); } });
+
+  form.querySelectorAll('.stepper').forEach(function(sp){
+    var o = sp.querySelector('output'), b = sp.querySelectorAll('button');
+    var step = parseFloat(sp.getAttribute('data-step')), min = parseFloat(sp.getAttribute('data-min')), max = parseFloat(sp.getAttribute('data-max'));
+    function set(d){
+      var v = Math.min(max, Math.max(min, Math.round((parseFloat(o.value) + d) * 100) / 100));
+      o.value = String(v); save();
+    }
+    b[0].addEventListener('click', function(){ set(-step); });
+    b[1].addEventListener('click', function(){ set(step); });
+  });
+
+  form.addEventListener('change', function(){ applyConditions(); save(); });
+  form.addEventListener('input', function(){ save(); });
+
+  var status = document.getElementById('status');
+  var SHOTKEY = KEY + '-shots';
+  var shots = [];
+  try{ var rs = JSON.parse(localStorage.getItem(SHOTKEY) || '[]'); if(Array.isArray(rs)) shots = rs; }catch(e){}
+
+  function saveShots(){ try{ localStorage.setItem(SHOTKEY, JSON.stringify(shots)); }catch(e){} }
+  function renderShots(){
+    var box = document.getElementById('thumbs'); box.textContent = '';
+    shots.forEach(function(sh, i){
+      var d = document.createElement('div'); d.className = 'thumb';
+      var im = document.createElement('img'); im.src = sh.dataUrl; im.alt = 'Screenshot ' + (i + 1);
+      var x = document.createElement('button'); x.type = 'button'; x.textContent = '×'; x.setAttribute('aria-label', 'Hiqe foton ' + (i + 1));
+      x.addEventListener('click', function(){ shots.splice(i, 1); saveShots(); renderShots(); });
+      d.appendChild(im); d.appendChild(x); box.appendChild(d);
+    });
+  }
+  function compress(file){
+    return new Promise(function(res, rej){
+      var r = new FileReader();
+      r.onerror = rej;
+      r.onload = function(){
+        var img = new Image();
+        img.onerror = rej;
+        img.onload = function(){
+          var max = 1400, w = img.width, h = img.height;
+          if(w > max){ h = Math.round(h * max / w); w = max; }
+          var c = document.createElement('canvas'); c.width = w; c.height = h;
+          c.getContext('2d').drawImage(img, 0, 0, w, h);
+          var q = 0.75, url = c.toDataURL('image/jpeg', q);
+          while(url.length > 230000 && q > 0.3){ q -= 0.1; url = c.toDataURL('image/jpeg', q); }
+          if(url.length > 230000){ c.width = Math.round(w * 0.7); c.height = Math.round(h * 0.7); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); url = c.toDataURL('image/jpeg', 0.6); }
+          res({ name: file.name, dataUrl: url });
+        };
+        img.src = r.result;
+      };
+      r.readAsDataURL(file);
+    });
+  }
+  document.getElementById('shots').addEventListener('change', function(e){
+    var files = Array.prototype.slice.call(e.target.files || []).slice(0, Math.max(0, 6 - shots.length));
+    Promise.all(files.map(compress)).then(function(list){
+      shots = shots.concat(list).slice(0, 6); saveShots(); renderShots();
+    }).catch(function(){ status.textContent = 'Një foto nuk u lexua. Provo një tjetër.'; });
+    e.target.value = '';
+  });
+
+  var dbP = (window.claude && window.claude.use) ? window.claude.use('db') : Promise.resolve(null);
+  var userP = (window.claude && window.claude.use) ? window.claude.use('user') : Promise.resolve(null);
+
+  function copyOut(){
+    function ok(){ status.textContent = 'U kopjua. Tani ngjiti në WhatsApp te Velo.'; }
+    function fb(){
+      out.removeAttribute('readonly'); out.select();
+      var d = false; try{ d = document.execCommand('copy'); }catch(e){}
+      out.setAttribute('readonly', '');
+      status.textContent = d ? 'U kopjua. Tani ngjiti në WhatsApp te Velo.' : 'Kopjimi nuk u lejua në këtë pajisje. Hape faqen nga një shfletues tjetër.';
+    }
+    if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(out.value).then(ok, fb); else fb();
+  }
+  document.getElementById('copy').addEventListener('click', function(){ build(); copyOut(); });
+
+  function showFallback(){
+    document.getElementById('fallback').hidden = false;
+    status.textContent = '';
+  }
+
+  var sending = false;
+  document.getElementById('send').addEventListener('click', function(){
+    if(sending) return;
+    build();
+    var btn = this; sending = true; btn.disabled = true; status.textContent = 'Po dërgohet…';
+    dbP.then(function(db){
+      if(!db) throw new Error('no-db');
+      var id = 'sub-' + Date.now();
+      var chain = db.collection('submissions').doc(id).set({ spec: out.value, submittedAt: new Date().toISOString(), shots: shots.length });
+      shots.forEach(function(sh, i){
+        chain = chain.then(function(){ return db.doc('submissions/' + id + '/shots/s' + i).set({ name: sh.name || '', dataUrl: sh.dataUrl }); });
+      });
+      return chain;
+    }).then(function(){
+      status.textContent = 'U dërgua. Velo i mori përgjigjet dhe fotot. Faleminderit!';
+      document.getElementById('doneintro').hidden = true;
+      btn.textContent = 'U dërgua';
+    }).catch(function(){
+      btn.disabled = false; showFallback();
+    }).then(function(){ sending = false; });
+  });
+
+  document.getElementById('reset').addEventListener('click', function(){
+    if(!confirm('Të fshihen të gjitha përgjigjet?')) return;
+    try{ localStorage.removeItem(KEY); localStorage.removeItem(SHOTKEY); }catch(e){}
+    form.reset(); shots = []; renderShots();
+    document.getElementById('risk').value = '1';
+    document.getElementById('maxd').value = '3';
+    document.getElementById('maxo').value = '1';
+    var sb = document.getElementById('send'); sb.disabled = false; sb.textContent = 'Dërgo përgjigjet';
+    document.getElementById('doneintro').hidden = false;
+    document.getElementById('fallback').hidden = true;
+    cur = 0; applyConditions(); show();
+    status.textContent = '';
+  });
+
+  // Owner inbox
+  function loadInbox(db){
+    var list = document.getElementById('inbox-list');
+    db.collection('submissions').get().then(function(snap){
+      list.textContent = '';
+      if(snap.empty){ var p = document.createElement('p'); p.className = 'intro'; p.textContent = 'Ende s\'ka përgjigje. Kur klienti shtyp "Dërgo", shfaqen këtu.'; list.appendChild(p); return; }
+      var docs = snap.docs.slice().sort(function(a, b){ return a.id < b.id ? 1 : -1; });
+      docs.forEach(function(d){
+        var data = d.data() || {};
+        var card = document.createElement('div'); card.className = 'sub';
+        var top = document.createElement('div'); top.className = 'sub-top';
+        var when = document.createElement('span');
+        var dt = data.submittedAt ? new Date(String(data.submittedAt)) : null;
+        when.textContent = (dt && !isNaN(dt)) ? dt.toLocaleString('sq-AL') : d.id;
+        var cp = document.createElement('button'); cp.type = 'button'; cp.className = 'ghost'; cp.textContent = 'Kopjo specifikimin';
+        var pre = document.createElement('pre'); pre.textContent = String(data.spec || '');
+        cp.addEventListener('click', function(){
+          if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(pre.textContent).then(function(){ cp.textContent = 'U kopjua'; }, function(){ cp.textContent = 'Përzgjidhe me dorë'; });
+        });
+        top.appendChild(when); top.appendChild(cp);
+        card.appendChild(top); card.appendChild(pre);
+        var th = document.createElement('div'); th.className = 'thumbs'; card.appendChild(th);
+        db.collection('submissions/' + d.id + '/shots').get().then(function(ss){
+          ss.docs.slice().sort(function(a, b){ return a.id < b.id ? -1 : 1; }).forEach(function(x){
+            var u = (x.data() || {}).dataUrl;
+            if(typeof u === 'string' && u.indexOf('data:image/') === 0){ var im = document.createElement('img'); im.src = u; im.alt = 'Screenshot'; th.appendChild(im); }
+          });
+        }).catch(function(){});
+        list.appendChild(card);
+      });
+    }).catch(function(){ list.textContent = 'Përgjigjet nuk u lexuan. Provo Rifresko.'; });
+  }
+  Promise.all([dbP, userP]).then(function(r){
+    var db = r[0], user = r[1];
+    if(!db || !user) return;
+    return user.isOwner().then(function(own){
+      if(!own) return;
+      document.getElementById('inbox').hidden = false;
+      document.getElementById('inbox-refresh').addEventListener('click', function(){ loadInbox(db); });
+      loadInbox(db);
+    });
+  }).catch(function(){});
+
+  load();
+  renderShots();
+  applyConditions();
+  show();
+})();
+</script>
+</body>
+</html>
