@@ -1,0 +1,173 @@
+{
+  "format": "xauusd-pyetesori",
+  "schemaVersion": 5,
+  "id": "XAU-20261005-LK296C",
+  "submissionKey": "00000000-0000-4000-8000-000000000000",
+  "submittedAt": "2026-10-05T10:00:00.000Z",
+  "mode": "test",
+  "photosIncluded": false,
+  "photosNote": "Fotot nuk përfshihen në këtë skedar. Për fotot përdor paketën e plotë ZIP.",
+  "photos": [
+    {
+      "photoId": "p1",
+      "filename": "shembulli-1-buy-win.jpg",
+      "type": "image/jpeg",
+      "bytes": 22,
+      "sha256": "d20f6ffd523b78a86cd2f916fa34af5d1918d75f7b142237c752ad6b254213ab",
+      "role": "example",
+      "exampleIndex": 1,
+      "note": "Hyrja pas kryqëzimit"
+    },
+    {
+      "photoId": "sp1",
+      "filename": "cilesimet-1.jpg",
+      "type": "image/jpeg",
+      "bytes": 22,
+      "sha256": "d20f6ffd523b78a86cd2f916fa34af5d1918d75f7b142237c752ad6b254213ab",
+      "role": "indicator-settings",
+      "settingsIndex": 1,
+      "note": "RSI në M15"
+    }
+  ],
+  "analysis": {
+    "readyForDevelopment": true,
+    "missingRequired": [],
+    "clarifyWithClient": [],
+    "developerChecks": []
+  },
+  "state": {
+    "answers": {
+      "facts_review": "ok",
+      "tf_signal": "M15",
+      "tf_higher": "H1",
+      "htf_candle": "closed",
+      "sides": "both",
+      "dir_method": "ma",
+      "dir_ma_type": "ema",
+      "dir_ma_period": "200",
+      "dir_ma_tf": "H1",
+      "dir_ma_source": "close",
+      "dir_ma_rule": "close_vs_ma",
+      "cond": [
+        "ma_cross",
+        "rsi"
+      ],
+      "cx_type": "ema",
+      "cx_fast": "9",
+      "cx_slow": "21",
+      "cx_tf": "same",
+      "cx_source": "close",
+      "rsi_period": "14",
+      "rsi_tf": "same",
+      "rsi_source": "close",
+      "rsi_rule": "RSI kalon mbi 50",
+      "combine": "all",
+      "seq": "same",
+      "sig_candle": "closed",
+      "mirror": "mirror",
+      "exe": "market_close",
+      "spread_filter": "dev",
+      "spread_block": "cancel",
+      "new_signal": "reset",
+      "entries_per_signal": "1",
+      "cooldown": "none",
+      "opposite": "ignore",
+      "skip": [
+        "never"
+      ],
+      "account_ccy": "USD",
+      "capital": "10000",
+      "size_method": "risk_pct",
+      "lot_cap": "no",
+      "size_conflict": "skip",
+      "risk_pct": "1",
+      "risk_base": "balance",
+      "max_trades": "3",
+      "max_open": "1",
+      "after_win": "continue",
+      "loss_stop": "none",
+      "daily_loss": "no",
+      "day_reset": "albania",
+      "account_kind": "personal",
+      "other_trading": "none",
+      "sl_method": "fixed",
+      "sl_fixed": "5",
+      "sl_max": "no",
+      "tp_method": "r",
+      "tp_r": "2",
+      "mg_be": "no",
+      "mg_partial": "no",
+      "mg_trail": "no",
+      "days": [
+        "mon",
+        "tue",
+        "wed",
+        "thu",
+        "fri"
+      ],
+      "t_from": "09:00",
+      "t_to": "17:00",
+      "t_tz": "albania",
+      "t_dst": "follow",
+      "end_positions": "keep",
+      "friday": "no",
+      "news": "no",
+      "push": "yes",
+      "tv_feed": "oanda",
+      "tv_tz": "albania",
+      "candle_type": "standard",
+      "bt_from": "2026-09-01",
+      "bt_to": "2026-09-30",
+      "bt_trades": "20_40",
+      "bt_winrate": "50_55",
+      "bt_same_candle": "never",
+      "bt_records": "sheet",
+      "acc_period": "same",
+      "acc_costs": "real",
+      "acc_entry_tol": "0.5",
+      "acc_time_tol": "same_candle",
+      "acc_match": "explained"
+    },
+    "examples": [
+      {
+        "kind": "buy",
+        "result": "win",
+        "date": "2026-09-03",
+        "time": "10:15",
+        "tf": "M15",
+        "entry": "2650.4",
+        "sl": "2645.4",
+        "tp": "2660.4",
+        "why": "Kryqëzim dhe RSI mbi 50",
+        "photoId": "p1",
+        "photoNote": "Hyrja pas kryqëzimit"
+      },
+      {
+        "kind": "sell",
+        "result": "loss",
+        "date": "2026-09-10",
+        "time": "14:30",
+        "tf": "M15",
+        "entry": "2660",
+        "sl": "2665",
+        "tp": "2650",
+        "why": "Kryqëzim poshtë, RSI nën 50"
+      },
+      {
+        "kind": "noentry",
+        "date": "2026-09-12",
+        "time": "09:45",
+        "tf": "M15",
+        "why": "RSI nuk e kaloi 50",
+        "photoId": null
+      }
+    ],
+    "legacyNotes": [],
+    "settingsPhotos": [
+      {
+        "photoId": "sp1",
+        "note": "RSI në M15"
+      }
+    ]
+  }
+}

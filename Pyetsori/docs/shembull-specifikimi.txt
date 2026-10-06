@@ -1,0 +1,145 @@
+SHEMBULL ME TË DHËNA PROVE (jo përgjigjet e klientit)
+
+XAUUSD EA SPECIFICATION (MetaTrader 5 / MQL5)
+Schema version: 5
+Submission ID: XAU-20261005-LK296C
+Photos: 2 (NOT included in this text file; download the full ZIP package for the photos)
+Date: 2026-10-05
+Status: Answers submitted | Ready for programming: YES
+
+Free-text answers are in Albanian. Do not invent rules: anything missing goes back to the client as a question.
+
+== 1. CLIENT ANSWERS ==
+
+-- What is traded --
+- Client review of confirmed facts: Client confirms all facts
+- Signal (entry) timeframe: M15
+- Higher timeframe used for direction: H1
+- Higher-timeframe candle used: Closed candles only
+- Allowed directions: Both BUY and SELL
+
+-- When a trade is opened --
+- Direction filter method: Moving average
+- Direction MA type: EMA
+- Direction MA period: 200 period
+- Direction MA timeframe: H1
+- Direction MA price source: Close
+- Direction MA rule: BUY when candle closes above the MA, SELL when it closes below
+- Entry conditions: MA crossover, RSI
+- Crossover MA type: EMA
+- Crossover fast period: 9 period
+- Crossover slow period: 21 period
+- Crossover timeframe: Same as signal timeframe
+- Crossover price source: Close
+- RSI period: 14 period
+- RSI timeframe: Same as signal timeframe
+- RSI price source: Close
+- RSI condition: RSI kalon mbi 50
+- How conditions combine: All conditions must be true
+- Timing between conditions: All on the same candle
+- Signal evaluated on: Closed candle
+- SELL is an exact mirror of BUY (entries and exits): Yes, exact mirror including exits
+- Order execution after signal confirmation: Market order immediately at the close of the signal candle
+- Definition of a new signal: Conditions must reset and form again
+- Entries allowed per signal: Only one
+- Cooldown after a trade closes: No cooldown
+- Opposite signal while a trade is open: Ignore it, trade runs to SL/TP
+- Skip a valid signal when: Never, always take valid signals
+- Max spread filter: Yes, developer sets a value for XAUUSD.r
+- When spread blocks entry: Signal is cancelled
+
+-- When a trade is closed --
+- Stop loss placement: Fixed distance
+- SL fixed distance: 5 USD of gold price movement
+- Skip trade if SL is too large: No, always take the trade
+- Take profit method: Multiple of the initial risk (R)
+- Take profit multiple: 2R
+- Break-even: No (not used)
+- Partial close: No (not used)
+- Trailing stop: No (not used)
+
+-- Risk and position size --
+- Account currency: USD
+- Planned trading capital: 10000 USD
+- Account kind: Personal
+- Other trading on the same account: No, only this EA
+- Position sizing method (only one active): Risk %: volume computed from the chosen % and the SL distance
+- Risk per trade: 1 % of account
+- Risk % calculated from: Balance
+- Maximum lot per trade: No cap (broker maximum still applies)
+- When the requested size conflicts with a risk or broker limit: Skip the trade
+- Max trades per day: 3 trades
+- Max positions open at the same time: 1 trades
+- After a winning trade: Keep trading up to the daily max
+- Stop after losses: No
+- Daily loss limit: No (not used)
+- Daily reset time: Midnight, Albania time (Europe/Tirane)
+
+-- Trading hours and news --
+- Trading days: Mon, Tue, Wed, Thu, Fri
+- Trading hours from: 09:00
+- Trading hours to: 17:00
+- Timezone of trading hours: Albania time (Europe/Tirane)
+- DST handling: Hours follow local clock (DST-aware)
+- Open positions at end of trading hours: Keep until SL/TP
+- Close before the weekend: No
+- News filter: No (not used)
+- Phone push notifications: Yes
+
+-- Examples, backtest and acceptance --
+- TradingView gold chart: OANDA:XAUUSD
+- TradingView chart timezone: Albania (Europe/Tirane)
+- Candle type in backtest: Standard candlesticks
+- Backtest from: 2026-09-01
+- Backtest to: 2026-09-30
+- Trades in backtest: 20–40
+- Win rate in backtest: 50–55%
+- SL and TP hit in the same candle (manual backtest): Never happened
+- Backtest trades recorded: Yes, in a spreadsheet (can be shared)
+- Comparison period: Same period as the trader backtest
+- Costs in comparison: With real Tauro spread and commission
+- Accepted entry price deviation: 0.5 USD of gold price movement
+- Accepted entry time deviation: Same candle
+- Required trade match: All, except differences explained by price feed or costs
+
+-- Examples --
+- Example 1 | Type: BUY | Result: Winner | Date: 2026-09-03 | Candle time: 10:15 | Timeframe: M15 | Entry price: 2650.4 | Stop loss price: 2645.4 | Take profit price: 2660.4 | Explanation: Kryqëzim dhe RSI mbi 50 | Photo description: Hyrja pas kryqëzimit | Photo: shembulli-1-buy-win.jpg
+- Example 2 | Type: SELL | Result: Loser | Date: 2026-09-10 | Candle time: 14:30 | Timeframe: M15 | Entry price: 2660 | Stop loss price: 2665 | Take profit price: 2650 | Explanation: Kryqëzim poshtë, RSI nën 50 | Photo: none
+- Example 3 | Type: Case where the EA must NOT enter | Date: 2026-09-12 | Candle time: 09:45 | Timeframe: M15 | Explanation: RSI nuk e kaloi 50 | Photo: none
+
+-- Indicator settings photos --
+- cilesimet-1.jpg: RSI në M15
+
+== 2. PREVIOUSLY CONFIRMED FACTS ==
+- Broker: Tauro, on MetaTrader 5
+- Instrument: gold only, symbol XAUUSD.r
+- Fully automatic: the EA opens, manages and closes trades itself
+- One strategy, manually backtested for one month on TradingView
+- Risk: 1% per trade
+- Maximum 3 trades per day
+- Client review: confirmed all facts
+
+== 3. ASSUMPTIONS PENDING CONFIRMATION ==
+- 1R = initial distance from entry to the original SL, in USD of gold price.
+
+== 4. TO CLARIFY WITH THE CLIENT (unresolved issues and contradictions) ==
+- None
+
+== 5. DEVELOPER VERIFICATIONS AND REQUIREMENTS ==
+- VERIFY ON THE CLIENT ACCOUNT (not asked to the client): symbol XAUUSD.r specification (digits, point, tick size/value, contract size), volume min/max/step, stops level and freeze level, commission per lot, typical and news-time spread, hedging vs netting, filling modes, broker server timezone and DST behaviour, trading session times.
+- Trade the chart symbol (_Symbol) so the EA runs on XAUUSD.r and on test accounts with other names.
+- POSITION SIZING (exactly one active method; never combine methods): RISK %: risk money = balance x 1%. Volume = risk money / (SL distance in price x money value of 1.0 lot per price unit), using SYMBOL_TRADE_TICK_VALUE / SYMBOL_TRADE_TICK_SIZE, including commission when known. No client lot cap (the broker maximum still applies). General risk limits apply in every method (daily loss limit, combined risk of open positions, prop firm limits, max trades). When the requested volume conflicts with the lot cap, a risk limit or the broker volume max/step: client choice = SKIP the trade. Always round DOWN to the volume step; never round up and never increase the volume above the allowed risk. If the volume would be below the broker minimum, skip the trade (it cannot be reduced further). Never change the size silently: log every reduction or skip with the requested volume, the final volume and the reason, and include it in the push notification. Account currency: USD; planned capital: 10000 USD (used to validate the settings, not as a sizing base).
+- Restore state after restart or reconnect (daily counters, loss counters, cooldowns, pending orders, partial-close stages) from trade history and open positions, not from memory only.
+- Prevent duplicate orders: one order per signal (respect entries-per-signal), check existing positions/orders by magic number before sending, handle requotes, partial fills and trade server return codes; retry only on retryable codes.
+- Do not modify, close or count trades outside the EA's responsibility (other magic numbers, manual trades) unless the answers explicitly say a limit applies to the whole account.
+- Every rule and limit is an input parameter; plain-English comments; log every decision (entry, skip with reason, modification, exit).
+- Signals evaluated on closed candles; never use future bars; avoid repainting.
+- Push notifications: send via SendNotification() on open, modify and close.
+- Provide a demo-only build option (refuses to trade on real accounts) for client testing before payment.
+- Choose a max spread value for XAUUSD.r from measured spreads and document it as an input.
+- Photos (examples and indicator settings) are for checking the written rules only. Do NOT infer or invent parameters from photos; if a photo seems to disagree with an answer, ask the client.
+- Do not start coding while unresolved issues or contradictions exist. Send questions back to the client.
+
+== 6. ACCEPTANCE (rule implementation, not profit) ==
+- Backtest the EA on the comparison period above with the listed costs, then compare its trades with the trader's examples and records within the accepted price and time deviations.
+- Acceptance verifies that the rules are implemented correctly. It does not promise future profit.
